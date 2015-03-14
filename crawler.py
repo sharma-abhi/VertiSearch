@@ -1,17 +1,31 @@
-__author__ = 'abhijeet'
+__author__ = 'Abhijeet Sharma'
 
 import urllib2
 import time
 import robotparser
+import re
 from bs4 import BeautifulSoup
+import urlparse as up
 
 
-def canonicalize(url):
-    #TODO url = lowercase(url)
-    #TODO url = remove_port(url)
-    #TODO url = absolute_url(url)
-    #TODO url = remove_fragment(url)
-    #TODO url = remove_duplicate(url)
+def canonicalize(url, current_url):
+    url = absolute_url(current_url, url)
+    parsed_url = up.urlparse(url)
+    new_scheme = parsed_url[0].lower()           # converting scheme to lowercase
+    new_host_url = parsed_url[1].lower()         # converting netloc (host url) to lowercase
+    port_list = re.findall(r':[0-9]+',new_host_url)
+    for port_string in port_list:
+        new_host_url = new_host_url.replace(port_string,"")
+    new_path = parsed_url[2].replace("//","/") # replacing '//' with '/' in path
+    new_params = parsed_url[3]
+    new_query = parsed_url [4]
+    new_fragment = ""                           # getting rid of fragments
+    new_parsed_url = (new_scheme, new_host_url, new_path, new_params, new_query, new_fragment)
+    url = up.urlunparse(new_parsed_url)
+    return url
+
+def absolute_url(current_url, url):
+    url = up.urljoin(current_url, url)
     return url
 
 '''1518 WORLD WAR 2
@@ -42,10 +56,9 @@ while True:
     url = frontier.pop()
 
     allowed = False
-    root_url = 'http://en.wikipedia.org'
-    #TODO implement root_utl()
+    host_url = host_extract(url)
     rp = robotparser.RobotFileParser()
-    rp.set_url(root_url+'/robots.txt')
+    rp.set_url(host_url+'/robots.txt')
     rp.read()
     if rp.can_fetch("*", url):
         allowed = True
