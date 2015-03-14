@@ -30,3 +30,5 @@ node_modules
 /.idea
 .idea
 .idea/
+output/
+output
