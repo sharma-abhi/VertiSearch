@@ -63,23 +63,29 @@ seed_url1 = 'http://en.wikipedia.org/wiki/World_War_II'
 seed_url2 = 'http://en.wikipedia.org/wiki/List_of_World_War_II_battles_involving_the_United_States'
 seed_url3 = 'http://en.wikipedia.org/wiki/Military_history_of_the_United_States_during_World_War_II'
 
-#front = frontier.FrontierQueue([seed_url1, seed_url2, seed_url3])
-front = frontier.FrontierQueue([seed_url1])
+front = frontier.FrontierQueue([seed_url1, seed_url2, seed_url3])
+#front = frontier.FrontierQueue([seed_url1])
 count = 0
-
-in_link = {}
-out_link = {}
-
+explored = {}
+in_link_dict = {}
 
 while True:
     #being polite
     time.sleep(1)
 
-    url = front.pop()
+    url, in_links = front.pop()
+
+    in_link_dict[url] = in_links
+
+    if explored.get(url) == None:
+        visited = False
+    else:
+        print "Url already visited.Skipping... ", url
+        visited = True
 
     allowed = polite_rules(url)
 
-    if allowed == True:
+    if allowed and not visited:
         count += 1
         req = urllib2.Request(url)
 
@@ -90,13 +96,14 @@ while True:
         html = response.read()
         soup = BeautifulSoup(html)
 
-        head = str(soup.title.string)
+
         links = []
 
         for link in soup.find_all('a'):
             if link.get('href') is not None and link.get('href')[0]!='#':
                 links.append(link.get('href'))
 
+        head = str(soup.title.string)
         text = soup.get_text().encode('ascii','replace')
 
         with open(str(count)+".txt",'w') as f:
@@ -113,20 +120,29 @@ while True:
             new_url = canonicalize(out_url, url)
             print "After canonicalization ", new_url
             if front.exists(new_url):
+                print "Url exists in front (main)"
                 front.update(new_url, url)
+            elif explored.get(new_url) != None:
+                print "Url doesn't exist in front (main) but exists in explored"
+                in_link_dict[new_url].append(url)
             else:
+                print "Url doesn't exist in front and doesn't exists in explored (new)"
                 front.push(new_url, url)
                 #in_link[new_url] = 1
-                out_link[new_url] = []
-            if out_link.get(url) == None:
-                out_link[url] = [new_url]
-            else:
-                out_link[url].append(new_url)
 
-        #TODO Explored_Set
-        #TODO write_file(text, url, html)
+
+            if explored.get(url) == None:
+                explored[url] = set([new_url])
+                print "new URL added in explored ",explored
+            else:
+                explored[url].add(new_url)
+                print "old URL updated in explored ",explored
+
+        #TODO write_file(head, text, explored[url], in_links)
         #TODO update_link_graph(url, links)
-    if count == 1:
+    print "Crawl for URL complete ", url
+    print "\n\n"
+    if count == 4:
         break
 
 
