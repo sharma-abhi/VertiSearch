@@ -2,12 +2,12 @@ __author__ = 'Abhijeet Sharma'
 
 import urllib2
 import time
-import robotparser
+from datetime import datetime
 import re
 import urlparse as up
 from bs4 import BeautifulSoup
 import frontier
-
+import robotexclusionrulesparser as rerp
 
 
 def canonicalize(url, current_url):
@@ -19,8 +19,10 @@ def canonicalize(url, current_url):
     for port_string in port_list:
         new_host_url = new_host_url.replace(port_string,"")
     new_path = parsed_url[2].replace("//","/") # replacing '//' with '/' in path
-    new_params = parsed_url[3]
-    new_query = parsed_url [4]
+    #new_params = parsed_url[3]
+    new_params = ""
+    #new_query = parsed_url [4]
+    new_query = ""
     new_fragment = ""                           # getting rid of fragments
     new_parsed_url = (new_scheme, new_host_url, new_path, new_params, new_query, new_fragment)
     url = up.urlunparse(new_parsed_url)
@@ -39,11 +41,51 @@ def host_extract(url):
     return url
 
 def policy_rules(url):
+    global banned_domains
+    
     host_url = host_extract(url)
-    rp = robotparser.RobotFileParser()
-    rp.set_url(host_url+'/robots.txt')
-    rp.read()
-    if rp.can_fetch("*", url):
+    
+    #rp = robotparser.RobotFileParser()
+    #rp.set_url(host_url+'/robots.txt')
+    #rp.read()
+    
+    # Excluding sites like Facebook, Amazon, Linkedin, etc.
+    '''match = re.search(r'[.]([a-zA-Z0-9]+)[.]',url)
+    if match:
+        domain = match.group(1)
+        if domain in banned_domains:
+            return False'''
+    
+    for domain in banned_domains:
+        if domain in host_url:
+            print "Banned Domain", domain ," Skipping..."
+            return False
+    
+    rp = rerp.RobotExclusionRulesParser()
+    try_count = 0
+    while try_count < 2:
+        try: rp.fetch(host_url+'/robots.txt')
+        except urllib2.URLError as e:
+            print "Error: ", e," for URL: ", url.encode('ascii','ignore')
+            try_count += 1
+        except UnicodeError as e:
+            print "Error: ", e," for URL: ", url.encode('ascii','ignore')
+            try_count += 1
+        except:
+            print "Error for URL: ", url.encode('ascii','ignore')
+            try_count += 1               
+        else:
+            break
+    
+    if try_count == 2:
+        print "Try count exceeded."
+        return False
+
+    #print "fetch: ",rp.can_fetch("*", url)
+    #print "fetch: ",rp.is_allowed("*", url)
+    
+    #if rp.can_fetch("*", url):
+    if rp.is_allowed("*", url):
         allowed = True
     else:
         allowed = False
@@ -58,14 +100,22 @@ def policy_rules(url):
 
 '''an id, the URL, the HTTP headers, the page contents cleaned (with term positions), the raw html, and a list of all
 in-links (known) and out-links for the page.'''
+start_time = str(datetime.now())
+st = time.time()
+print "starting in time :",start_time
+topic = 'world war'
+seed_url1 = 'http://www.history.com/topics/world-war-ii'
+seed_url2 = 'http://www.britannica.com/EBchecked/topic/648813/World-War-II'
+seed_url3 = 'http://en.wikipedia.org/wiki/World_War_II'
+seed_url4 = 'http://en.wikipedia.org/wiki/Military_history_of_the_United_States_during_World_War_II'
+seed_url5 = 'http://en.wikipedia.org/wiki/List_of_World_War_II_battles_involving_the_United_States'
 
-seed_url1 = 'http://en.wikipedia.org/wiki/World_War_II'
-seed_url2 = 'http://en.wikipedia.org/wiki/List_of_World_War_II_battles_involving_the_United_States'
-seed_url3 = 'http://en.wikipedia.org/wiki/Military_history_of_the_United_States_during_World_War_II'
-seed_url4 = 'http://www.history.com/topics/world-war-ii'
+global banned_domains
+banned_domains = ['facebook', 'amazon', 'linkedin', 'youtube', 'foursquare', 'plus.google',\
+                  'instagram', 'twitter', 'email', 'flickr', 'vine', 'meetup', 'tumblr']
 
-front = frontier.FrontierQueue([seed_url1, seed_url2, seed_url3, seed_url4])
-#front = frontier.FrontierQueue([seed_url1])
+front = frontier.FrontierQueue([seed_url1, seed_url2, seed_url3, seed_url4, seed_url5])
+
 count = 0
 explored = {}
 in_link_dict = {}
@@ -84,7 +134,7 @@ while True:
         break
     else:
         url, in_links = front.pop()
-    print count, "Crawl started for URL ", url
+    print count, "Crawl started for URL ", url.encode('ASCII','ignore')
     in_link_dict[url] = in_links
 
     if explored.get(url) == None:
@@ -96,20 +146,33 @@ while True:
     allowed = policy_rules(url)
 
     if allowed and not visited:
-        count += 1
-
-
-
+        
+        redo_count = 0
+        while redo_count < 2:
         #req = urllib2.Request(url)
         #try: response = urllib2.urlopen(req)
-        try: response = opener.open(url)
-        except urllib2.URLError as e:
-            print "Error: ", e," for URL: ", url
+            try: response = opener.open(url)
+            except urllib2.URLError as e:
+                print "Error: ", e," for URL: ", url.encode('ascii','ignore')
+                redo_count += 1
+            except:
+                print "Error for URL: ", url.encode('ascii','ignore')
+                redo_count += 1               
+            else:
+                break
+        
+        if redo_count == 2:
+            print "redo count exceeded. Skipping..."
             continue
 
         html = response.read()
-        header_info = response.info().dict['content-type']
-
+        try: header_info = response.info().dict['content-type']
+        except KeyError as e:
+            print "KeyError ",e," Skipping..."
+            continue
+        except:
+            print "Error, skipping..."
+            continue
         if len(re.findall('text/html',header_info)) == 0:
             print "Link not text/html.Skipping..."
             continue
@@ -117,9 +180,12 @@ while True:
         soup = BeautifulSoup(html)
 
         if soup.title == None:
-            head = "<No Title>"
+            head = ""
         else:
-            head = soup.title.string.encode('ascii','ignore')
+            if soup.title.string == None:
+                head = ""
+            else:
+                head = soup.title.string.encode('ascii','ignore')
 
         text_list = [''.join(s.findAll(text=True)) for s in soup.find_all('p')]
         body_text = '.'.join(text_list).encode('ascii','ignore')
@@ -130,9 +196,24 @@ while True:
 
         text = body_text + table_text
         text = text.replace("\n",' ')
+        topic_check = re.compile(topic,re.IGNORECASE)
+        text_check = topic_check.search(text)
+        head_check = topic_check.search(head)
+        if text_check == None and head_check == None:
+            print "Offtopic, skipping..."
+            continue
 
-        with open("output/"+"VS"+str(count)+".txt",'w') as f:
-            f.write(text)
+        with open("output/"+"VS_"+str(count)+".txt",'w') as f:
+            f.write("<DOC>\n")
+            f.write("<DOCNO>" + url.encode('ascii','ignore') + "</DOCNO>\n")
+            f.write("<HEAD>" + head + "</HEAD>\n")
+            f.write("<TEXT>\n")
+            f.write(text + "\n")
+            f.write("</TEXT>\n")
+            f.write("<HTML>\n")
+            f.write(html + "\n")
+            f.write("</HTML>\n")
+            f.write("/DOC")
         #print "write successful for url", url
 
         links = []
@@ -169,10 +250,13 @@ while True:
         #TODO update_link_graph(url, links)
         #print count," Crawl for URL complete ", url
         #print "\n\n"
-        if count == 10000:
+        count += 1
+        if count == 30000:
             break
     else:
-        print "Skipping URL: ",url
+        print "Skipping URL: ", url.encode('ascii','ignore'), "Allowed : ", allowed, "Visited: ",visited
 
-
-
+end_time = str(datetime.now())
+et = time.time()
+print "start time is ",start_time," and end time is ",end_time
+print "time taken ",et - st
