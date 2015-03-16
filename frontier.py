@@ -1,5 +1,4 @@
 __author__ = 'Abhijeet Sharma'
-#import heapq
 
 class FrontierQueue:
     '''Seed URLs should always be crawled first.
@@ -8,20 +7,21 @@ class FrontierQueue:
     queue the longest'''
 
     def  __init__(self, seed_list):
-        #self.heap = []
 
-        #self.count = 0
         self.seed = {}
+        self.depth_list = {}
         for item in seed_list:
             self.seed[item] = set()
+            self.depth_list[item] = 0
         self.front = {}
         #print "front initialized ", self.front
 
-    def push(self, item, in_link):
+    def push(self, item, depth, in_link):
         #entry = (priority, self.count, item)
         #heapq.heappush(self.heap, entry)
 
         self.front[item] = set([in_link])
+        self.depth_list[item] = depth
         #self.count += 1
         #print "item ", item," succsessfully pushed in front", self.front
 
@@ -33,13 +33,13 @@ class FrontierQueue:
             in_links = self.front[item]
             del self.front[item]
             #print "item ", item," successfully popped from front ", self.front
-            return item, in_links
+            return item, self.depth_list[item], in_links
         else:
             item = sorted(self.seed.items(),key = lambda x:len(x[1]))[0][0]
             in_links = self.seed[item]
             del self.seed[item]
             #print "item ", item," successfully popped from Seed ", self.seed
-            return item, in_links
+            return item, self.depth_list[item], in_links
 
 
     def isEmpty(self):
@@ -59,3 +59,11 @@ class FrontierQueue:
         else:
             #print "Item ", item," exists in Front"
             return True
+            
+    def write_logs(self, loop_count):
+        with open("logs/frontier_" + str(loop_count) + ".log","w") as flog:
+            flog.write(str(self.front))
+        with open("logs/depth_list_" + str(loop_count) + ".log","w") as dlog:    
+            dlog.write(str(self.depth_list))
+        print "There are ", len(self.front), " items in frontier"
+        print "There are ", len(self.depth_list), " items in depth list"

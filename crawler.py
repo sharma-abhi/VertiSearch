@@ -6,9 +6,11 @@ from datetime import datetime
 import re
 import urlparse as up
 from bs4 import BeautifulSoup
+from bs4 import element
 import frontier
 import robotexclusionrulesparser as rerp
-
+import json
+import relevancechecker as rc
 
 def canonicalize(url, current_url):
     url = absolute_url(current_url, url)
@@ -92,7 +94,7 @@ def policy_rules(url):
     #print "Url: ", url, "Allowed: ", allowed
     return allowed
 
-'''1518 WORLD WAR 2
+'''WORLD WAR 2
 	http://www.history.com/topics/world-war-ii
 	http://en.wikipedia.org/wiki/World_War_II
 	http://en.wikipedia.org/wiki/List_of_World_War_II_battles_involving_the_United_States
@@ -101,9 +103,12 @@ def policy_rules(url):
 '''an id, the URL, the HTTP headers, the page contents cleaned (with term positions), the raw html, and a list of all
 in-links (known) and out-links for the page.'''
 start_time = str(datetime.now())
-st = time.time()
 print "starting in time :",start_time
-topic = 'world war'
+
+depth = 0
+learn_depth_limit = 1
+rel_check = rc.RelevanceChecker()
+
 seed_url1 = 'http://www.history.com/topics/world-war-ii'
 seed_url2 = 'http://www.britannica.com/EBchecked/topic/648813/World-War-II'
 seed_url3 = 'http://en.wikipedia.org/wiki/World_War_II'
@@ -111,10 +116,11 @@ seed_url4 = 'http://en.wikipedia.org/wiki/Military_history_of_the_United_States_
 seed_url5 = 'http://en.wikipedia.org/wiki/List_of_World_War_II_battles_involving_the_United_States'
 
 global banned_domains
-banned_domains = ['facebook', 'amazon', 'linkedin', 'youtube', 'foursquare', 'plus.google',\
-                  'instagram', 'twitter', 'email', 'flickr', 'vine', 'meetup', 'tumblr']
+banned_domains = ['facebook', 'amazon', 'google', 'linkedin', 'youtube', 'foursquare', 'plus.google',\
+                  'instagram', 'twitter', 'email', 'flickr', 'vine', 'meetup', 'tumblr', 'videos', 'pictures', 'games', 'audio']
 
 front = frontier.FrontierQueue([seed_url1, seed_url2, seed_url3, seed_url4, seed_url5])
+#front = frontier.FrontierQueue([seed_url1])
 
 count = 0
 explored = {}
@@ -123,17 +129,21 @@ opener = urllib2.build_opener()
 headers = {
   'User-Agent': 'Mozilla/5.0 (Windows NT 5.1; rv:10.0.1) Gecko/20100101 Firefox/10.0.1',
 }
-
 opener.addheaders = headers.items()
-
+st = 1
+et = 0
 while True:
-    #being polite
-    time.sleep(1)
+        
+    #being polite  
+    if et - st < 1:
+        time.sleep(1)
+    
+    st = time.time()    
     if front.isEmpty():
         print "QUEUE EMPTY"
         break
     else:
-        url, in_links = front.pop()
+        url, depth, in_links = front.pop()
     print count, "Crawl started for URL ", url.encode('ASCII','ignore')
     in_link_dict[url] = in_links
 
@@ -149,8 +159,6 @@ while True:
         
         redo_count = 0
         while redo_count < 2:
-        #req = urllib2.Request(url)
-        #try: response = urllib2.urlopen(req)
             try: response = opener.open(url)
             except urllib2.URLError as e:
                 print "Error: ", e," for URL: ", url.encode('ascii','ignore')
@@ -166,6 +174,7 @@ while True:
             continue
 
         html = response.read()
+        header = json.dumps(response.info().dict)
         try: header_info = response.info().dict['content-type']
         except KeyError as e:
             print "KeyError ",e," Skipping..."
@@ -173,6 +182,7 @@ while True:
         except:
             print "Error, skipping..."
             continue
+        
         if len(re.findall('text/html',header_info)) == 0:
             print "Link not text/html.Skipping..."
             continue
@@ -180,12 +190,12 @@ while True:
         soup = BeautifulSoup(html)
 
         if soup.title == None:
-            head = ""
+            title = ""
         else:
             if soup.title.string == None:
-                head = ""
+                title = ""
             else:
-                head = soup.title.string.encode('ascii','ignore')
+                title = soup.title.string.encode('ascii','ignore')
 
         text_list = [''.join(s.findAll(text=True)) for s in soup.find_all('p')]
         body_text = '.'.join(text_list).encode('ascii','ignore')
@@ -196,30 +206,58 @@ while True:
 
         text = body_text + table_text
         text = text.replace("\n",' ')
-        topic_check = re.compile(topic,re.IGNORECASE)
-        text_check = topic_check.search(text)
-        head_check = topic_check.search(head)
-        if text_check == None and head_check == None:
+        
+        '''relevance = rel_check.is_relevant(text, head)
+        if not relevance:
+            #TODO log files
             print "Offtopic, skipping..."
-            continue
+            continue'''
 
         with open("output/"+"VS_"+str(count)+".txt",'w') as f:
             f.write("<DOC>\n")
             f.write("<DOCNO>" + url.encode('ascii','ignore') + "</DOCNO>\n")
-            f.write("<HEAD>" + head + "</HEAD>\n")
+            f.write("<HEADER>" + header + "</HEADER>\n")
+            f.write("<TITLE>" + title + "</TITLE>\n")
             f.write("<TEXT>\n")
             f.write(text + "\n")
             f.write("</TEXT>\n")
             f.write("<HTML>\n")
             f.write(html + "\n")
             f.write("</HTML>\n")
-            f.write("/DOC")
+            f.write("</DOC>")
         #print "write successful for url", url
 
         links = []
 
         for link in soup.find_all('a'):
-            if link.get('href') is not None  and link.get('href') != '' and link.get('href')[0]!='#':
+            link_ref = link.get('href')
+            if link_ref is not None  and link_ref != '' and link_ref[0]!='#':
+                if len(link.contents) != 0 and isinstance(link.contents[0], element.NavigableString):
+                    anchor_text = str(link.contents[0].encode('ascii','ignore'))    # fetch anchor text
+                    #print "anchor text for link: ",link.get('href'), " is ",anchor_text.encode('ascii','ignore')
+                else:
+                    continue
+                
+                if depth < learn_depth_limit:
+                    word_list = rel_check.extract_relevant_words(anchor_text.lower())
+                    for domain in banned_domains:
+                        if domain in word_list:
+                            word_list = [x for x in word_list if x != domain]
+                        else:
+                            word_list = [x for x in word_list if len(x) > 1]
+                    rel_check.update_topic(word_list)
+                    
+                    #print "current topic list is ", topic_set, "\n"
+                else:
+                    if rel_check.is_valid_anchor(anchor_text, link_ref):
+                        pass
+                    else:
+                        #print "Offtopic, skipping..."
+                        doc = {'url': link.get('href'), 'anchor_text': anchor_text}
+                        with open("off_topic_log.txt","a+") as fot:
+                            fot.write(json.dumps(doc)+"\n")
+                        continue
+                
                 links.append(link.get('href'))
 
         #links = links[:2]
@@ -236,7 +274,7 @@ while True:
                 in_link_dict[new_url].add(url)
             else:
                 #print "Url doesn't exist in front and doesn't exists in explored (new)"
-                front.push(new_url, url)
+                front.push(new_url, depth + 1, url)
 
 
             if explored.get(url) == None:
@@ -245,17 +283,30 @@ while True:
             else:
                 explored[url].add(new_url)
                 #print "old URL updated in explored ",explored
-
+        
+        #TODO log files
         #TODO write_file(head, text, explored[url], in_links)
         #TODO update_link_graph(url, links)
         #print count," Crawl for URL complete ", url
         #print "\n\n"
         count += 1
+        if count % 100 == 0:
+            with open("logs/topic_" + str(count) + ".log","w") as flog:
+                flog.write(str(list(rel_check.fetch_set())))
+            front.write_logs(count)
+            with open("logs/in_link_" + str(count) + ".log","w") as flog:
+                flog.write(str(in_link_dict))
+            with open("logs/out_link_" + str(count) + ".log","w") as flog:
+                flog.write(str(explored))
+            print "There are ", len(rel_check.fetch_set())," topics\n"
+            print "There are ", len(in_link_dict)," in_link_dict\n"
+            print "There are ", len(explored)," explored\n"
+                
         if count == 30000:
             break
     else:
         print "Skipping URL: ", url.encode('ascii','ignore'), "Allowed : ", allowed, "Visited: ",visited
-
+    et = time.time()
 end_time = str(datetime.now())
 et = time.time()
 print "start time is ",start_time," and end time is ",end_time
