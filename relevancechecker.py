@@ -7,15 +7,18 @@ class RelevanceChecker:
     '''Relevance check in text and anchor links'''    
 
     def  __init__(self):
+        self.topic_seed = set(["world","war", "battle"])
         self.topic_set = set(["world","war", "battle"])
         stopFileName = 'stoplist.txt'
         with open(stopFileName,'r') as fstop:
             self.stopFileData = fstop.readlines()
         self.stopFileData = [x.replace("\n",'') for x in self.stopFileData]
+        self.topics = {}
+        self.score = {"world":100, "war":100, "battle":100}
         
     def is_relevant(self, text, head):
         count = 0
-        for topic in self.topic_set:
+        for topic in self.topic_seed:
             topic_check = re.compile(topic,re.IGNORECASE)
             text_check = topic_check.search(text)
             head_check = topic_check.search(head)
@@ -29,7 +32,7 @@ class RelevanceChecker:
         else:
             return False
     
-    def is_valid_anchor(self, anchor_text, link_ref):
+    def is_valid_anchor(self, anchor_text, link_ref, new_link_ref):
         count = 0
         for topic in self.topic_set:
             topic_check = re.compile(topic,re.IGNORECASE)
@@ -38,6 +41,10 @@ class RelevanceChecker:
             if text_check == None and link_check == None:
                 continue
             else:
+                if self.topics.get(new_link_ref) == None:
+                    self.topics[new_link_ref] = set([topic])
+                else:
+                    self.topics[new_link_ref].add(topic)
                 count += 1
         
         if count >= 1:
@@ -75,8 +82,36 @@ class RelevanceChecker:
         return input_string
      
     def update_topic(self, word_list):
+        for x in word_list:
+            self.score[x] = 0
         self.topic_set.update(word_list)
 
     
     def fetch_set(self):
         return self.topic_set
+    
+    def update_topic_scores(self, url):
+        if self.topics.get(url) != None:
+            top = self.topics[url]
+            for x in top:
+                self.score[x] += 1
+    
+    def penalise_scores(self, url):
+        if self.topics.get(url) != None:
+            top = self.topics[url]
+            for x in top:
+                self.score[x] -= 1    
+                
+    def remove_topics(self):
+        sorted_topics = sorted(self.score, key = self.score.get, reverse = True)
+        #deleted_topics = sorted_topics[2*(len(sorted_topics)/3):]
+        deleted_topics = sorted_topics[-100:]
+        with open("logs/deleted_topics.log","a+") as fdel:
+            fdel.write(str(deleted_topics))
+        for i in deleted_topics:
+            if i in self.topic_set:
+                self.topic_set.remove(i)
+            
+            
+    def fetch_scores(self):
+        return self.score

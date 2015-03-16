@@ -106,7 +106,7 @@ start_time = str(datetime.now())
 print "starting in time :",start_time
 
 depth = 0
-learn_depth_limit = 1
+learn_depth_limit = 2
 rel_check = rc.RelevanceChecker()
 
 seed_url1 = 'http://www.history.com/topics/world-war-ii'
@@ -117,7 +117,7 @@ seed_url5 = 'http://en.wikipedia.org/wiki/List_of_World_War_II_battles_involving
 
 global banned_domains
 banned_domains = ['facebook', 'amazon', 'google', 'linkedin', 'youtube', 'foursquare', 'plus.google',\
-                  'instagram', 'twitter', 'email', 'flickr', 'vine', 'meetup', 'tumblr', 'videos', 'pictures', 'games', 'audio']
+                  'instagram', 'twitter', 'email', 'flickr', 'vine', 'meetup', 'tumblr', 'videos', 'pictures', 'games', 'audio'] #ww1?
 
 front = frontier.FrontierQueue([seed_url1, seed_url2, seed_url3, seed_url4, seed_url5])
 #front = frontier.FrontierQueue([seed_url1])
@@ -144,6 +144,7 @@ while True:
         break
     else:
         url, depth, in_links = front.pop()
+        
     print count, "Crawl started for URL ", url.encode('ASCII','ignore')
     in_link_dict[url] = in_links
 
@@ -207,25 +208,17 @@ while True:
         text = body_text + table_text
         text = text.replace("\n",' ')
         
-        '''relevance = rel_check.is_relevant(text, head)
-        if not relevance:
-            #TODO log files
-            print "Offtopic, skipping..."
-            continue'''
-
-        with open("output/"+"VS_"+str(count)+".txt",'w') as f:
-            f.write("<DOC>\n")
-            f.write("<DOCNO>" + url.encode('ascii','ignore') + "</DOCNO>\n")
-            f.write("<HEADER>" + header + "</HEADER>\n")
-            f.write("<TITLE>" + title + "</TITLE>\n")
-            f.write("<TEXT>\n")
-            f.write(text + "\n")
-            f.write("</TEXT>\n")
-            f.write("<HTML>\n")
-            f.write(html + "\n")
-            f.write("</HTML>\n")
-            f.write("</DOC>")
-        #print "write successful for url", url
+        relevance = rel_check.is_relevant(text, title)
+        if relevance:
+            rel_check.update_topic_scores(url)
+        else:
+            print "Offtopic url, skipping..."
+            rel_check.penalise_scores(url)
+            doc = {'url': url}
+            with open("off_topic_log.txt","a+") as fot:
+                fot.write(json.dumps(doc)+"\n")
+            continue
+         
 
         links = []
 
@@ -237,7 +230,7 @@ while True:
                     #print "anchor text for link: ",link.get('href'), " is ",anchor_text.encode('ascii','ignore')
                 else:
                     continue
-                
+                #TODO Use a rank mechanism so that less relevant topics are trimmed off after count = 10 or 100 
                 if depth < learn_depth_limit:
                     word_list = rel_check.extract_relevant_words(anchor_text.lower())
                     for domain in banned_domains:
@@ -249,7 +242,8 @@ while True:
                     
                     #print "current topic list is ", topic_set, "\n"
                 else:
-                    if rel_check.is_valid_anchor(anchor_text, link_ref):
+                    new_link_ref = canonicalize(link_ref, url)
+                    if rel_check.is_valid_anchor(anchor_text, link_ref, new_link_ref):
                         pass
                     else:
                         #print "Offtopic, skipping..."
@@ -284,13 +278,28 @@ while True:
                 explored[url].add(new_url)
                 #print "old URL updated in explored ",explored
         
+        with open("output/"+"VS_"+str(count)+".txt",'w') as f:
+            f.write("<DOC>\n")
+            f.write("<DOCNO>" + url.encode('ascii','ignore') + "</DOCNO>\n")
+            f.write("<HEADER>" + header + "</HEADER>\n")
+            f.write("<TITLE>" + title + "</TITLE>\n")
+            f.write("<TEXT>\n")
+            f.write(text + "\n")
+            f.write("</TEXT>\n")
+            f.write("<HTML>\n")
+            f.write(html + "\n")
+            f.write("</HTML>\n")
+            f.write("</DOC>")
+        #print "write successful for url", url
+        
         #TODO log files
         #TODO write_file(head, text, explored[url], in_links)
         #TODO update_link_graph(url, links)
         #print count," Crawl for URL complete ", url
         #print "\n\n"
         count += 1
-        if count % 100 == 0:
+        if count % 10 == 0:
+            rel_check.remove_topics()
             with open("logs/topic_" + str(count) + ".log","w") as flog:
                 flog.write(str(list(rel_check.fetch_set())))
             front.write_logs(count)
@@ -301,7 +310,8 @@ while True:
             print "There are ", len(rel_check.fetch_set())," topics\n"
             print "There are ", len(in_link_dict)," in_link_dict\n"
             print "There are ", len(explored)," explored\n"
-                
+            with open("logs/scores_" + str(count) + ".log","w") as flog:
+                flog.write(str(rel_check.fetch_scores()))
         if count == 30000:
             break
     else:
