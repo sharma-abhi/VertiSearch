@@ -295,7 +295,7 @@ while True:
         #TODO update_link_graph(url, links)
 
         count += 1
-        if count % 20 == 0:
+        if count % 100 == 0:
             rel_check.remove_topics()
             with open("logs/topic_" + str(count) + ".log","w") as flog:
                 flog.write(str(list(rel_check.fetch_set())))

@@ -14,7 +14,7 @@ class RelevanceChecker:
             self.stopFileData = fstop.readlines()
         self.stopFileData = [x.replace("\n",'') for x in self.stopFileData]
         self.topics = {}
-        self.score = {"world":100, "war":100, "battle":100}
+        self.score = {"world":10000000000000000, "war":10000000000000000, "battle":10000000000000000}
         
     def is_relevant(self, text, title):
         count = 0
@@ -119,4 +119,6 @@ class RelevanceChecker:
         return self.score
 
     def update_topic_seed(self):
-         self.topic_seed = self.topic_set
+        self.topic_seed = self.topic_set
+        with open("logs/current_topic_seed.log","w") as flog:
+                flog.write(str(list(self.topic_seed)))
