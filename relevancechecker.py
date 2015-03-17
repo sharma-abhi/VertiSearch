@@ -16,13 +16,13 @@ class RelevanceChecker:
         self.topics = {}
         self.score = {"world":100, "war":100, "battle":100}
         
-    def is_relevant(self, text, head):
+    def is_relevant(self, text, title):
         count = 0
         for topic in self.topic_seed:
-            topic_check = re.compile(topic,re.IGNORECASE)
+            topic_check = re.compile(r'\b' + topic + r'\b',re.IGNORECASE)
             text_check = topic_check.search(text)
-            head_check = topic_check.search(head)
-            if text_check == None and head_check == None:
+            title_check = topic_check.search(title)
+            if text_check == None and title_check == None:
                 continue
             else:
                 count += 1
@@ -83,7 +83,8 @@ class RelevanceChecker:
      
     def update_topic(self, word_list):
         for x in word_list:
-            self.score[x] = 0
+            if self.score.get(x) == None:
+            	self.score[x] = 0
         self.topic_set.update(word_list)
 
     
@@ -105,7 +106,8 @@ class RelevanceChecker:
     def remove_topics(self):
         sorted_topics = sorted(self.score, key = self.score.get, reverse = True)
         #deleted_topics = sorted_topics[2*(len(sorted_topics)/3):]
-        deleted_topics = sorted_topics[-100:]
+        #deleted_topics = sorted_topics[-100:]
+        deleted_topics = [x for x in sorted_topics if self.score[x] > 1]
         with open("logs/deleted_topics.log","a+") as fdel:
             fdel.write(str(deleted_topics))
         for i in deleted_topics:
@@ -115,3 +117,6 @@ class RelevanceChecker:
             
     def fetch_scores(self):
         return self.score
+
+    def update_topic_seed(self):
+         self.topic_seed = self.topic_set

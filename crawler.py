@@ -230,7 +230,7 @@ while True:
                     #print "anchor text for link: ",link.get('href'), " is ",anchor_text.encode('ascii','ignore')
                 else:
                     continue
-                #TODO Use a rank mechanism so that less relevant topics are trimmed off after count = 10 or 100 
+                # rank mechanism so that less relevant topics are trimmed off after count = 10 or 100 
                 if depth < learn_depth_limit:
                     word_list = rel_check.extract_relevant_words(anchor_text.lower())
                     for domain in banned_domains:
@@ -292,13 +292,10 @@ while True:
             f.write("</DOC>")
         #print "write successful for url", url
         
-        #TODO log files
-        #TODO write_file(head, text, explored[url], in_links)
         #TODO update_link_graph(url, links)
-        #print count," Crawl for URL complete ", url
-        #print "\n\n"
+
         count += 1
-        if count % 10 == 0:
+        if count % 20 == 0:
             rel_check.remove_topics()
             with open("logs/topic_" + str(count) + ".log","w") as flog:
                 flog.write(str(list(rel_check.fetch_set())))
@@ -312,11 +309,14 @@ while True:
             print "There are ", len(explored)," explored\n"
             with open("logs/scores_" + str(count) + ".log","w") as flog:
                 flog.write(str(rel_check.fetch_scores()))
+            rel_check.update_topic_seed()
         if count == 30000:
             break
     else:
         print "Skipping URL: ", url.encode('ascii','ignore'), "Allowed : ", allowed, "Visited: ",visited
     et = time.time()
+    #print count," Crawl for URL complete ", url
+    #print "\n\n"
 end_time = str(datetime.now())
 et = time.time()
 print "start time is ",start_time," and end time is ",end_time
