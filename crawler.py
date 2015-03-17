@@ -52,12 +52,7 @@ def policy_rules(url):
     #rp.read()
     
     # Excluding sites like Facebook, Amazon, Linkedin, etc.
-    '''match = re.search(r'[.]([a-zA-Z0-9]+)[.]',url)
-    if match:
-        domain = match.group(1)
-        if domain in banned_domains:
-            return False'''
-    
+   
     for domain in banned_domains:
         if domain in host_url:
             print "Banned Domain", domain ," Skipping..."
@@ -295,7 +290,7 @@ while True:
         #TODO update_link_graph(url, links)
 
         count += 1
-        if count % 100 == 0:
+        if count % 50 == 0:
             rel_check.remove_topics()
             with open("logs/topic_" + str(count) + ".log","w") as flog:
                 flog.write(str(list(rel_check.fetch_set())))

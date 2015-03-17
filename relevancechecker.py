@@ -7,14 +7,14 @@ class RelevanceChecker:
     '''Relevance check in text and anchor links'''    
 
     def  __init__(self):
-        self.topic_seed = set(["world","war", "battle"])
-        self.topic_set = set(["world","war", "battle"])
+        self.topic_seed = set(["world","war", "battle", "world war"])
+        self.topic_set = set(["world","war", "battle", "world war"])
         stopFileName = 'stoplist.txt'
         with open(stopFileName,'r') as fstop:
             self.stopFileData = fstop.readlines()
         self.stopFileData = [x.replace("\n",'') for x in self.stopFileData]
         self.topics = {}
-        self.score = {"world":10000000000000000, "war":10000000000000000, "battle":10000000000000000}
+        self.score = {"world":10000000000000000, "war":10000000000000000, "battle":10000000000000000, "world war":10000000000000000}
         
     def is_relevant(self, text, title):
         count = 0
@@ -107,7 +107,7 @@ class RelevanceChecker:
         sorted_topics = sorted(self.score, key = self.score.get, reverse = True)
         #deleted_topics = sorted_topics[2*(len(sorted_topics)/3):]
         #deleted_topics = sorted_topics[-100:]
-        deleted_topics = [x for x in sorted_topics if self.score[x] > 1]
+        deleted_topics = [x for x in sorted_topics if self.score[x] < 1]
         with open("logs/deleted_topics.log","a+") as fdel:
             fdel.write(str(deleted_topics))
         for i in deleted_topics:
