@@ -124,15 +124,21 @@ opener = urllib2.build_opener()
 headers = {
   'User-Agent': 'Mozilla/5.0 (Windows NT 5.1; rv:10.0.1) Gecko/20100101 Firefox/10.0.1',
 }
+topic = 'world+war+2'
 opener.addheaders = headers.items()
+topic_response = opener.open("http://api.datamuse.com/words?rd="+topic+"&max=2000").read()
+topic_seed = json.loads(topic_response)
+topic_seed = [x["word"] for x in topic_seed if x['score'] > 38661]
+print len(topic_seed)
+
 st = 1
 et = 0
 while True:
-        
+    print "time taken ",et - st
     #being polite  
     if et - st < 1:
         time.sleep(1)
-    
+
     st = time.time()    
     if front.isEmpty():
         print "QUEUE EMPTY"
@@ -203,12 +209,13 @@ while True:
         text = body_text + table_text
         text = text.replace("\n",' ')
         
-        relevance = rel_check.is_relevant(text, title)
+        relevance = rel_check.is_relevant(text, title, topic_seed)
         if relevance:
-            rel_check.update_topic_scores(url)
+            #rel_check.update_topic_scores(url)
+            pass
         else:
             print "Offtopic url, skipping..."
-            rel_check.penalise_scores(url)
+            #rel_check.penalise_scores(url)
             doc = {'url': url}
             with open("off_topic_log.txt","a+") as fot:
                 fot.write(json.dumps(doc)+"\n")
@@ -222,30 +229,30 @@ while True:
             if link_ref is not None  and link_ref != '' and link_ref[0]!='#':
                 if len(link.contents) != 0 and isinstance(link.contents[0], element.NavigableString):
                     anchor_text = str(link.contents[0].encode('ascii','ignore'))    # fetch anchor text
+                    anchor_text = anchor_text.replace("_"," ")
+                    anchor_list = anchor_text.split()
                     #print "anchor text for link: ",link.get('href'), " is ",anchor_text.encode('ascii','ignore')
                 else:
                     continue
                 # rank mechanism so that less relevant topics are trimmed off after count = 10 or 100 
-                if depth < learn_depth_limit:
+                '''if depth < learn_depth_limit:
                     word_list = rel_check.extract_relevant_words(anchor_text.lower())
                     for domain in banned_domains:
                         if domain in word_list:
                             word_list = [x for x in word_list if x != domain]
                         else:
                             word_list = [x for x in word_list if len(x) > 1]
-                    rel_check.update_topic(word_list)
+                    rel_check.update_topic(word_list)'''
                     
-                    #print "current topic list is ", topic_set, "\n"
+                #else:
+                if rel_check.is_valid_anchor(anchor_list, topic_seed):
+                    pass
                 else:
-                    new_link_ref = canonicalize(link_ref, url)
-                    if rel_check.is_valid_anchor(anchor_text, link_ref, new_link_ref):
-                        pass
-                    else:
-                        #print "Offtopic, skipping..."
-                        doc = {'url': link.get('href'), 'anchor_text': anchor_text}
-                        with open("off_topic_log.txt","a+") as fot:
-                            fot.write(json.dumps(doc)+"\n")
-                        continue
+                    #print "Offtopic, skipping..."
+                    doc = {'url': link.get('href'), 'anchor_text': anchor_text}
+                    with open("off_topic_log.txt","a+") as fot:
+                        fot.write(json.dumps(doc)+"\n")
+                    continue
                 
                 links.append(link.get('href'))
 
@@ -293,22 +300,21 @@ while True:
         count += 1
         #if count % 20 == 0:
             #rel_check.update_banned_domains()
-        if count % 100 == 0:
-            rel_check.remove_topics()
+        if count % 5 == 0:
+
             with open("logs/topic_" + str(count) + ".log","w") as flog:
-                flog.write(str(list(rel_check.fetch_set())))
+                flog.write(str(topic_seed))
             front.write_logs(count)
             with open("logs/in_link_" + str(count) + ".log","w") as flog:
                 flog.write(str(in_link_dict))
             with open("logs/out_link_" + str(count) + ".log","w") as flog:
                 flog.write(str(explored))
-            print "There are ", len(rel_check.fetch_set())," topics\n"
+
             print "There are ", len(in_link_dict)," in_link_dict\n"
             print "There are ", len(explored)," explored\n"
-            with open("logs/scores_" + str(count) + ".log","w") as flog:
-                flog.write(str(rel_check.fetch_scores()))
-            rel_check.update_topic_seed()
-        if count == 30000:
+
+
+        if count == 70000:
             break
     else:
         print "Skipping URL: ", url.encode('ascii','ignore'), "Allowed : ", allowed, "Visited: ",visited
