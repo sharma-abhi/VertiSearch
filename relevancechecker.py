@@ -38,17 +38,38 @@ class RelevanceChecker:
             return False
 
     #checks for relevance in anchor text
-
-    def is_valid_anchor(self, anchor_list, topic_seed):
+    def is_valid_anchor(self, anchor_text, topic_seed):
 
         count = 0
+	anchor_text = self.remove_stop(anchor_text)
+        anchor_list = anchor_text.split()
         for word in anchor_list:
             if word in topic_seed:
                 count += 1
             else:
                 continue
-
         if count >= 1:
             return True
         else:
             return False
+
+    def remove_stop(self, input_string):
+
+        for p in string.punctuation:
+	    if p != '_' and p!='-':
+	        input_string = input_string.replace(p," ")
+	tlist = input_string.split()
+	slist=[]
+    	for i in range(len(tlist)):
+       	    if tlist[i] in self.stopFileData:
+                slist.append('')
+            else:
+                slist.append(tlist[i])
+	input_string = ' '.join(slist)
+        input_string = input_string.replace("\n","")
+        input_string = input_string.replace("  "," ")
+        input_string = input_string.lower()
+	#return after removing stop words
+        return input_string
+
+

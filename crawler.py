@@ -21,9 +21,7 @@ def canonicalize(url, current_url):
     for port_string in port_list:
         new_host_url = new_host_url.replace(port_string,"")
     new_path = parsed_url[2].replace("//","/") # replacing '//' with '/' in path
-    #new_params = parsed_url[3]
     new_params = ""
-    #new_query = parsed_url [4]
     new_query = ""
     new_fragment = ""                           # getting rid of fragments
     new_parsed_url = (new_scheme, new_host_url, new_path, new_params, new_query, new_fragment)
@@ -46,13 +44,8 @@ def policy_rules(url):
     global banned_domains
     
     host_url = host_extract(url)
-    
-    #rp = robotparser.RobotFileParser()
-    #rp.set_url(host_url+'/robots.txt')
-    #rp.read()
-    
-    # Excluding sites like Facebook, Amazon, Linkedin, etc.
    
+    # Excluding sites like Facebook, Amazon, Linkedin, etc.  
     for domain in banned_domains:
         if domain in host_url:
             print "Banned Domain", domain ," Skipping..."
@@ -77,16 +70,11 @@ def policy_rules(url):
     if try_count == 2:
         print "Try count exceeded."
         return False
-
-    #print "fetch: ",rp.can_fetch("*", url)
-    #print "fetch: ",rp.is_allowed("*", url)
-    
-    #if rp.can_fetch("*", url):
+   
     if rp.is_allowed("*", url):
         allowed = True
     else:
         allowed = False
-    #print "Url: ", url, "Allowed: ", allowed
     return allowed
 
 '''WORLD WAR 2
@@ -104,11 +92,12 @@ depth = 0
 learn_depth_limit = 2
 rel_check = rc.RelevanceChecker()
 
-seed_url1 = 'http://www.history.com/topics/world-war-ii'
-seed_url2 = 'http://www.britannica.com/EBchecked/topic/648813/World-War-II'
+
+seed_url1 = 'http://en.wikipedia.org/wiki/List_of_World_War_II_battles_involving_the_United_States'
+seed_url2 = 'http://en.wikipedia.org/wiki/Military_history_of_the_United_States_during_World_War_II'
 seed_url3 = 'http://en.wikipedia.org/wiki/World_War_II'
-seed_url4 = 'http://en.wikipedia.org/wiki/Military_history_of_the_United_States_during_World_War_II'
-seed_url5 = 'http://en.wikipedia.org/wiki/List_of_World_War_II_battles_involving_the_United_States'
+seed_url4 = 'http://www.history.com/topics/world-war-ii'
+seed_url5 = 'http://www.britannica.com/EBchecked/topic/648813/World-War-II'
 
 global banned_domains
 banned_domains = ['facebook', 'amazon', 'google', 'linkedin', 'youtube', 'foursquare', 'plus.google',\
@@ -146,7 +135,7 @@ while True:
     else:
         url, depth, in_links = front.pop()
         
-    print count, "Crawl started for URL ", url.encode('ASCII','ignore')
+    print count, "Crawl started for URL ", url.encode('ASCII','ignore'), " in links: ", in_links
     in_link_dict[url] = in_links
 
     if explored.get(url) == None:
@@ -228,9 +217,7 @@ while True:
             link_ref = link.get('href')
             if link_ref is not None  and link_ref != '' and link_ref[0]!='#':
                 if len(link.contents) != 0 and isinstance(link.contents[0], element.NavigableString):
-                    anchor_text = str(link.contents[0].encode('ascii','ignore'))    # fetch anchor text
-                    anchor_text = anchor_text.replace("_"," ")
-                    anchor_list = anchor_text.split()
+                    anchor_text = str(link.contents[0].encode('ascii','ignore'))    # fetch anchor text                    
                     #print "anchor text for link: ",link.get('href'), " is ",anchor_text.encode('ascii','ignore')
                 else:
                     continue
@@ -245,7 +232,7 @@ while True:
                     rel_check.update_topic(word_list)'''
                     
                 #else:
-                if rel_check.is_valid_anchor(anchor_list, topic_seed):
+                if rel_check.is_valid_anchor(anchor_text, topic_seed):
                     pass
                 else:
                     #print "Offtopic, skipping..."
@@ -257,11 +244,12 @@ while True:
                 links.append(link.get('href'))
 
         #links = links[:2]
-
+	if explored.get(url) == None:
+                explored[url] = set()
         for out_url in links:
-            #print "Before canonicalization ", out_url
+            # Before canonicalization
             new_url = canonicalize(out_url, url)
-            #print "After canonicalization ", new_url
+            # After canonicalization
             if front.exists(new_url):
                 #print "Url exists in front (main)"
                 front.update(new_url, url)
@@ -271,14 +259,8 @@ while True:
             else:
                 #print "Url doesn't exist in front and doesn't exists in explored (new)"
                 front.push(new_url, depth + 1, url)
+            explored[url].add(new_url)
 
-
-            if explored.get(url) == None:
-                explored[url] = set([new_url])
-                #print "new URL added in explored ",explored
-            else:
-                explored[url].add(new_url)
-                #print "old URL updated in explored ",explored
         
         with open("output/"+"VS_"+str(count)+".txt",'w') as f:
             f.write("<DOC>\n")
@@ -300,7 +282,7 @@ while True:
         count += 1
         #if count % 20 == 0:
             #rel_check.update_banned_domains()
-        if count % 5 == 0:
+        if count % 100 == 0:
 
             with open("logs/topic_" + str(count) + ".log","w") as flog:
                 flog.write(str(topic_seed))
