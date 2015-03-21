@@ -90,7 +90,7 @@ def policy_rules(full_url, limit):
 def log_error(error, error_reason):
     error_reason = error_reason.encode(encoding_format, 'ignore')
     with open("run_errors.log","a+") as ferr:
-        ferr.write("Error detected: " + error + "for url: " + error_reason)
+        ferr.write("Error detected: " + str(error) + "for url: " + str(error_reason))
 
 ############################### start of program ###########################
 # TODO: make command line arguments for generalization
@@ -291,6 +291,7 @@ while not front.is_front_empty():
             canonical_out_link = canon.canonicalize(out_link, url)
             # if after canonicalization, we get same url, skip.
             if canonical_out_link == url:
+                log_error("skipped becase of canon", out_link)
                 continue
 
             # check if link(url) exists in the frontier set.
@@ -361,6 +362,6 @@ end_time = str(datetime.now())
 end_ts = time.time()
 print "start time is: ", start_time," and end time is: ", end_time
 print "time taken: ", end_ts - start_ts
-
+# TODO main()
 # TODO update_link_graph(url, links)
 # TODO Edit distance graph for similar pages

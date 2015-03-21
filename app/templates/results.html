@@ -1,0 +1,39 @@
+<!-- extend from base layout -->
+{% extends "base.html" %}
+
+{% block content %}
+<script type="text/javascript" language="JavaScript">
+<!--
+function HideContent(d) {
+document.getElementById(d).style.display = "none";
+}
+function ShowContent(d) {
+document.getElementById(d).style.display = "block";
+}
+function ReverseDisplay(d) {
+if(document.getElementById(d).style.display == "none") { document.getElementById(d).style.display = "block"; }
+else { document.getElementById(d).style.display = "none"; }
+}
+//-->
+</script>
+    <h1>Hello!</h1>
+    <h1>Query Results</h1>
+    {% for key, item in results.items() %}
+    <div>
+        <h3>URL: {{ key }}</h3>
+        <h4>Title: {{ item.title }}</h4>
+        <h4>Text: {{ item.text }}</h4>
+        <h4>Document Length: {{ item.doc_length }}</h4>
+        <h4>In Links: {{ item.in_links }}</h4>
+        <h4>Out Links: {{ item.out_links }}</h4>
+        <a href="javascript:ReverseDisplay('hidden')">Click here for more details:</a>
+        <div id= "hidden" style="display:none;">
+            <p>Header: {{ item.header }}</p>
+            <p>raw_html: {{ item.raw_html }}</p>
+        </div>
+        <!--<a href="javascript:ShowContent('hidden')">Click here for more details:</a>
+        <a href="javascript:HideContent('hidden')">Click here for more details:</a>-->
+
+    </div>
+    {% endfor %}
+{% endblock %}

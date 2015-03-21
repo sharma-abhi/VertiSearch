@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+<head lang="en">
+    <meta charset="UTF-8">
+    <title>Results - VertiSearch</title>
+</head>
+<body>
+    {% extends "base.html" %}
+    {% block content %}
+        <h1>Hello!</h1>
+        <h1>Query Results</h1>
+        {% for key, item in results.items() %}
+        <div>
+            <h3>URL: {{ key }}</h3>
+            <h4>Title: {{ item.title }}</h4>
+            <h4>Click here for more details: <a href="/details">Details</a></h4>
+            <h4>Text: {{ item.text }}</h4>
+            <h4>Document Length: {{ item.doc_length }}</h4>
+            <h4>In Links: {{ item.in_links }}</h4>
+            <h4>Out Links: {{ item.out_links }}</h4>
+            <div id="details" style="display: none;">
+                <h4>Header: {{ item.header }}</h4>
+                <h4>raw_html: {{ item.raw_html }}</h4>
+            </div>
+        </div>
+        {% endfor %}
+    {% endblock %}
+</body>
+</html>
