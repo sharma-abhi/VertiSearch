@@ -11,26 +11,15 @@ import frontier
 import robotexclusionrulesparser as rerp
 import json
 import relevancechecker as rc
+from canonicalization import Canonicalizer
+from elasticsearch import Elasticsearch
 
-def canonicalize(url, current_url):
-    url = absolute_url(current_url, url)
-    parsed_url = up.urlparse(url)
-    new_scheme = parsed_url[0].lower()           # converting scheme to lowercase
-    new_host_url = parsed_url[1].lower()         # converting netloc (host url) to lowercase
-    port_list = re.findall(r':[0-9]+',new_host_url)
-    for port_string in port_list:
-        new_host_url = new_host_url.replace(port_string,"")
-    new_path = parsed_url[2].replace("//","/") # replacing '//' with '/' in path
-    new_params = ""
-    new_query = ""
-    new_fragment = ""                           # getting rid of fragments
-    new_parsed_url = (new_scheme, new_host_url, new_path, new_params, new_query, new_fragment)
-    url = up.urlunparse(new_parsed_url)
-    return url
-
-def absolute_url(current_url, url):
-    url = up.urljoin(current_url, url)
-    return url
+def is_present(es, docNo):
+    try: req = es.get(index = 'vs_dataset', doc_type = 'document', id = docNo, fields = ['text'])
+    except:
+        return False
+    else:
+        return True
 
 def host_extract(url):
     parsed_url = up.urlparse(url)
@@ -89,9 +78,10 @@ start_time = str(datetime.now())
 print "starting in time :",start_time
 
 depth = 0
-learn_depth_limit = 2
+#learn_depth_limit = 2
 rel_check = rc.RelevanceChecker()
-
+c = Canonicalizer()
+es = Elasticsearch()
 
 seed_url1 = 'http://en.wikipedia.org/wiki/List_of_World_War_II_battles_involving_the_United_States'
 seed_url2 = 'http://en.wikipedia.org/wiki/Military_history_of_the_United_States_during_World_War_II'
@@ -187,7 +177,7 @@ while True:
                 title = ""
             else:
                 title = soup.title.string.encode('ascii','ignore')
-
+        title = title.replace("\n"," ")
         text_list = [''.join(s.findAll(text=True)) for s in soup.find_all('p')]
         body_text = '.'.join(text_list).encode('ascii','ignore')
         if soup.find("table") == None:
@@ -248,7 +238,7 @@ while True:
                 explored[url] = set()
         for out_url in links:
             # Before canonicalization
-            new_url = canonicalize(out_url, url)
+            new_url = c.canonicalize(out_url, url)
             # After canonicalization
             if front.exists(new_url):
                 #print "Url exists in front (main)"
@@ -256,24 +246,52 @@ while True:
             elif explored.get(new_url) != None:
                 #print "Url doesn't exist in front (main) but exists in explored"
                 in_link_dict[new_url].add(url)
+                #if is_present(es, docNo):
+                existing_in_links = es.get(index = 'vs_dataset', doc_type = 'document', id = 3, fields = ['in_links'])
+                new_in_links = existing_in_links.append(url)
+                res = es.update(index = 'vs_dataset', doc_type = 'document', id = new_url, body = {u'in_links': {"script": 'update_links'}})
             else:
                 #print "Url doesn't exist in front and doesn't exists in explored (new)"
                 front.push(new_url, depth + 1, url)
             explored[url].add(new_url)
 
-        
+        docNo = url.encode('ascii','ignore')
+        docLength = len(text)
+
         with open("output/"+"VS_"+str(count)+".txt",'w') as f:
             f.write("<DOC>\n")
-            f.write("<DOCNO>" + url.encode('ascii','ignore') + "</DOCNO>\n")
-            f.write("<HEADER>" + header + "</HEADER>\n")
+            f.write("<DOCNO>" + docNo + "</DOCNO>\n")
             f.write("<TITLE>" + title + "</TITLE>\n")
             f.write("<TEXT>\n")
             f.write(text + "\n")
             f.write("</TEXT>\n")
+            f.write("<IN_LINKS>\n")
+            f.write(str(in_link_dict[url]) + "\n")
+            f.write("</IN_LINKS>\n")
+            f.write("<OUT_LINKS>\n")
+            f.write(str(explored[url]) + "\n")
+            f.write("</OUT_LINKS>\n")
+            f.write("<HEADER>\n")
+            f.write(str(header) + "\n")
+            f.write("</HEADER>\n")
             f.write("<HTML>\n")
-            f.write(html + "\n")
+            f.write(str(html) + "\n")
             f.write("</HTML>\n")
             f.write("</DOC>")
+
+
+        doc = {
+                'docno': docNo,
+                'title': title,
+                'text': text,
+                'in_links': in_link_dict[url],
+                'out_links': explored[url],
+                'header': header,
+                'raw_html': html,
+                'docLength': docLength
+                }
+        res = es.index(index="vs_dataset", doc_type='document', id = docNo, body = doc)
+
         #print "write successful for url", url
         
         #TODO update_link_graph(url, links)
@@ -282,7 +300,7 @@ while True:
         count += 1
         #if count % 20 == 0:
             #rel_check.update_banned_domains()
-        if count % 100 == 0:
+        if count % 10 == 0:
 
             with open("logs/topic_" + str(count) + ".log","w") as flog:
                 flog.write(str(topic_seed))
@@ -296,7 +314,7 @@ while True:
             print "There are ", len(explored)," explored\n"
 
 
-        if count == 70000:
+        if count == 20:#70000:
             break
     else:
         print "Skipping URL: ", url.encode('ascii','ignore'), "Allowed : ", allowed, "Visited: ",visited
