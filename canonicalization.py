@@ -3,10 +3,11 @@ __author__ = 'abhijeet'
 import re
 import urlparse as up
 
-class Canonicalizer():
 
-    def  __init__(self):
-        #nothing here for now
+class Canonicalizer(object):
+
+    def __init__(self):
+        # nothing here for now
         pass
 
     # function to canonicalize urls
@@ -24,9 +25,9 @@ class Canonicalizer():
         http://www.example.com/a.html#anything -> http://www.example.com/a.html
     5. Remove duplicate slashes:
         http://www.example.com//a.html -> http://www.example.com/a.html'''
-
-    def canonicalize(self, url, current_url):
-        url = self.absolute_url(url, current_url)
+    @staticmethod
+    def canonicalize(url, current_url):
+        url = Canonicalizer.absolute_url(url, current_url)
         parsed_url = up.urlparse(url)
         new_scheme = parsed_url[0].lower()           # converting scheme to lowercase
         new_host_url = parsed_url[1].lower()         # converting netloc (host url) to lowercase
@@ -49,6 +50,7 @@ class Canonicalizer():
     # EXAMPLES:
     # absolute_url('/wiki/World_War_II','http://www.wikipedia.com') ->
     # 'http://www.wikipedia.com/wiki/World_War_II'
-    def absolute_url(self, url, current_url):
+    @staticmethod
+    def absolute_url(url, current_url):
         url = up.urljoin(current_url, url)
         return url
