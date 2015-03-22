@@ -25,6 +25,8 @@ def is_present(elastic, doc_no):
     except exceptions.NotFoundError as err:
         log_error(err, doc_no)
         return False
+    except:
+        return False
     else:
         return True
 
@@ -90,7 +92,32 @@ def policy_rules(full_url, limit):
 def log_error(error, error_reason):
     error_reason = error_reason.encode(encoding_format, 'ignore')
     with open("run_errors.log","a+") as ferr:
-        ferr.write("Error detected: " + str(error) + "for url: " + str(error_reason))
+        ferr.write("Error detected: " + str(error) + "for url: " + str(error_reason) + "\n")
+
+def save_to_file(json_object, file_obj):
+    file_obj.write("<DOC>\n")
+
+    file_obj.write("<DOCNO>" + str(json_object.get('docno')) + "</DOCNO>\n")
+
+    file_obj.write("<TITLE>" + str(json_object.get('title')) + "</TITLE>\n")
+
+    file_obj.write("<INLINK>" + str(json_object.get('in_links')) + "</INLINK>\n")
+
+    file_obj.write("<OUTLINK>" + str(json_object.get('out_links')) + "</OUTLINK>\n")
+
+    file_obj.write("<HEADER>" + str(json_object.get('header')) + "</HEADER>\n")
+
+    file_obj.write("<TEXT>\n")
+    file_obj.write(str(json_object.get('text')))
+    file_obj.write("\n</TEXT>\n")
+
+    file_obj.write("<CONTENT>\n")
+    file_obj.write(json_object.get('raw_html'))
+    file_obj.write("\n</CONTENT>\n")
+
+    file_obj.write("<DOCLEN>" + str(json_object.get('doclength')) + "</DOCLEN>\n")
+
+    file_obj.write("</DOC>\n")
 
 ############################### start of program ###########################
 # TODO: make command line arguments for generalization
@@ -111,12 +138,12 @@ print "starting in time :", start_time
 seed_url1 = 'http://en.wikipedia.org/wiki/List_of_World_War_II_battles_involving_the_United_States'
 seed_url2 = 'http://en.wikipedia.org/wiki/Military_history_of_the_United_States_during_World_War_II'
 seed_url3 = 'http://en.wikipedia.org/wiki/World_War_II'
-seed_url4 = 'http://www.history.com/topics/world-war-ii'
-seed_url5 = 'http://www.britannica.com/EBchecked/topic/648813/World-War-II'
 
-front = frontier.FrontierQueue([seed_url1, seed_url2, seed_url3, seed_url4, seed_url5])
+# Inserting seed url
+front = frontier.FrontierQueue([seed_url1, seed_url2, seed_url3])
+
 rel_check = rc.RelevanceChecker()
-es = Elasticsearch()
+es = Elasticsearch(hosts=[{'host': '10.0.0.9', 'port': 9200}], timeout=180)
 
 # no. of retry attempts for fetching data from a website
 retry_limit = 2
@@ -259,7 +286,7 @@ while not front.is_front_empty():
 
             # fetch out link
             link_ref = link.get('href')
-
+            anchor_text = ""
             # check if link is valid or not.
             if link_ref is not None  and link_ref != '' and link_ref[0] != '#':
                 # check if link has valid anchor text
@@ -291,7 +318,7 @@ while not front.is_front_empty():
             canonical_out_link = canon.canonicalize(out_link, url)
             # if after canonicalization, we get same url, skip.
             if canonical_out_link == url:
-                log_error("skipped becase of canon", out_link)
+                log_error("skipped becase url produced same canonicalization out-link as itself: ", out_link)
                 continue
 
             # check if link(url) exists in the frontier set.
@@ -303,9 +330,20 @@ while not front.is_front_empty():
             elif explored.get(canonical_out_link) is not None:
 
                 # update elastic search with the new in link.
-                es_body = {u'in_links': {"script": 'update_links', "params" : {"new_link": url}}}
-                res = es.update(index='vs_dataset', doc_type='document', id=canonical_out_link, body=es_body)
-
+                es_body = {u'in_links': {"script": 'update_links', "params": {"new_link": url}}}
+                try:
+                    res = es.update(index='vs_dataset', doc_type='document', id=canonical_out_link, body=es_body)
+                    with open("output/updates.txt","a+") as fw:
+                        fw.write(str({canonical_out_link: url}) + "\n")
+                except exceptions.NotFoundError as err:
+                    log_error(err, canonical_out_link)
+                    continue
+                except exceptions.ConnectionError as err:
+                    log_error(err, canonical_out_link)
+                    continue
+                except:
+                    log_error("Other Errors", canonical_out_link)
+                    continue
             # check if link(url) doesn't exist in the frontier set and doesn't exists in the explored set also.
             else:
                 front.push(canonical_out_link, url)
@@ -328,14 +366,20 @@ while not front.is_front_empty():
                 'in_links': list(in_link_dict[url]),
                 'out_links': list(explored[url]),
                 'header': str(header),
-                'raw_html': str(html),
+                'raw_html': str(html.decode(encoding_format, 'ignore')),
                 'docLength': docLength
                 }
 
         # indexing document in Elastic Search
-        res = es.index(index="vs_dataset", doc_type='document', id=docNo, body=doc)
-
-        print "Index successful for url", url
+        try:
+            res = es.index(index="vs_dataset", doc_type='document', id=docNo, body=doc)
+        except:
+            log_error("index already present", url)
+            print "Index UnSuccessful for url", url
+        else:
+            with open("output/vs_" + str(count) + ".txt","w") as fw:
+                save_to_file(doc, fw)
+            print "Index successful for url", url
 
         # incrementing counter
         count += 1

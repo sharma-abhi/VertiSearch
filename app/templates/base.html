@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html>
+  <link rel=stylesheet type=text/css href="{{ url_for('static', filename='style.css') }}">
   <head lang="en">
     <meta charset="UTF-8">
     {% if title %}
@@ -9,7 +10,7 @@
     {% endif %}
   </head>
   <body>
-    <div>VertiSearch: <a href="/index">Home</a> <a href="/query">Query</a></div>
+    <div>VertiSearch: <a href="/">Home</a></div>
     <hr>
     {% with messages = get_flashed_messages() %}
         {% if messages %}

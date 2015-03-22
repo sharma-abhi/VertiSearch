@@ -10,7 +10,7 @@ class Computequery(object):
     """computes the result based on user input query"""
 
     def __init__(self):
-        self.es = Elasticsearch()
+        self.es = Elasticsearch(hosts=[{'host': '10.0.0.9', 'port': 9200}], timeout=180)
         self.rc = RelevanceChecker()
         # calculated using Sense
         # self.maxSize = 84678
@@ -26,13 +26,13 @@ class Computequery(object):
         #Using built-in score
         res = self.es.search(index="vs_dataset", doc_type="document", size=5, analyzer="my_english", body=query_body)
         time_taken = res['took']
-        result_num = len(res['hits']['hits'])
+        results_num = len(res['hits']['hits'])
         print "time taken", time_taken
         results = dict()
 
-        for i in range(result_num):
+        for i in range(results_num):
             doc_id = str(res['hits']['hits'][i]['_id'])
-            rank = str(i)
+            rank = i+1
             score = str(res['hits']['hits'][i]['_score'])
 
             source = res['hits']['hits'][i]['_source']
@@ -46,9 +46,9 @@ class Computequery(object):
             doc_length = source['docLength']
 
             if score != 0:
-                results[doc_id] = {'docno': doc_id, 'title': title, 'text': text, 'in_links': in_links,\
+                results[rank] = {'docno': doc_id, 'title': title, 'text': text, 'in_links': in_links,\
                                    'out_links': out_links, 'header': header, 'raw_html': raw_html, \
-                                   'doc_length': doc_length}
+                                   'doc_length': doc_length, 'score': score}
 
                 '''print doc_id
                 print rank
@@ -57,5 +57,6 @@ class Computequery(object):
                 print in_links
                 print out_links
                 print "\n"'''
+            print doc_id
         print "score computation complete ", len(results)
-        return results
+        return results, time_taken, results_num
