@@ -13,22 +13,26 @@ else { document.getElementById(d).style.display = "none"; }
 </script>
 <div id="query_info" class="results-info">
     <h1>Query Results</h1><hr>
-    <p class="results-info">About {{ num }} results ({{ time }} seconds)</p>
+    <p class="results-info">{{ num }} results ({{ time }} seconds)</p>
 </div>
-    {% for key in keys %}
-        <div id= {{ key }} class="results-section">
-            <p class="results-title">Title: {{ results[key].title }}</p>
-            <p class="results-info">Rank: {{ key }} | Score: {{ results[key].score }}</p>
-            <p class="results-url"><a href={{ results[key].docno }} >{{ results[key].docno }}</a></p>
-            <p class="results-text">Text: {{ results[key].text }}</p>
-            <p class ="results-url"><a href="javascript:ReverseDisplay('{{ results[key].docno }}')">Click here for more details</a></p>
-            <div id= {{ results[key].docno }}  style="display:none;" class="results-detail">
-                <p style="{border-style: groove}">Document Length: {{ results[key].doc_length }}</p>
-                <p>In Links: {{ results[key].in_links }}</p>
-                <p>Out Links: {{ results[key].out_links }}</p>
-                <p>Header: {{ results[key].header }}</p>
-                <p>raw_html: {{ results[key].raw_html }}</p>
-            </div>
-        </div><hr>
-    {% endfor %}
+    {% if num == 0 %}
+    <p class="results-text">Sorry, No search result found.</p>
+    {% else %}
+        {% for key in keys %}
+            <div id= {{ key }} class="results-section">
+                <p class="results-title">Title: {{ results[key].title }}</p>
+                <p class="results-info">Rank: {{ key }} | Score: {{ results[key].score }}</p>
+                <p class="results-url"><a href={{ results[key].docno }} >{{ results[key].docno }}</a></p>
+                <p class="results-text">{{ results[key].text[:500] }}...</p>
+                <p class ="results-url"><a href="javascript:ReverseDisplay('{{ results[key].docno }}')">Click here for more details</a></p>
+                <div id= {{ results[key].docno }}  style="display:none;" class="results-detail">
+                    <p class="results-text">{{ results[key].text }}</p>
+                    <p>In Links: {{ results[key].in_links }}</p>
+                    <p>Out Links: {{ results[key].out_links }}</p>
+                    <p>Header: {{ results[key].header }}</p>
+                    <p>raw_html: {{ results[key].raw_html }}</p>
+                </div>
+            </div><hr>
+        {% endfor %}
+    {% endif %}
 {% endblock %}

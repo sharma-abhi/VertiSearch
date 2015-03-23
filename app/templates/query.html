@@ -5,7 +5,17 @@
 <div class="query-box">
     <form action="" method="post" name="query">
          {{ form.hidden_tag() }}
-         <h1>Welcome, Abhijeet!</h1>
+         <h1>Welcome to VertiSearch, Abhijeet!</h1>
+         <div id="prev-queries" class="prev-query">
+            {% if form.prev_set %}
+                <p>10 Previous Search Queries</p>
+                    {% for item in form.prev_set %}
+                        <ul class="a">
+                            <li>{{ item }}</li>
+                        </ul>
+                    {% endfor %}
+            {% endif %}
+         </div>
          <h2>Please enter your Query in the below field</h2>
          {{ form.openid(size=80) }}<br>
          {% for error in form.openid.errors %}

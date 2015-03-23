@@ -21,10 +21,10 @@ class Computequery(object):
         query = self.rc.remove_stop(query)
 
         print "Running Query ", query
-        query_body = {"query": {"match": {"text": query}}}
+        query_body = {"query": {"multi_match": {"query": query, "fields": ["title", "text"]}}}
 
         #Using built-in score
-        res = self.es.search(index="vs_dataset", doc_type="document", size=5, analyzer="my_english", body=query_body)
+        res = self.es.search(index="vs_dataset", doc_type="document", size=100, analyzer="my_english", body=query_body)
         time_taken = res['took']
         results_num = len(res['hits']['hits'])
         print "time taken", time_taken
@@ -43,12 +43,12 @@ class Computequery(object):
             out_links = source['out_links']
             header = source['header']
             raw_html = source['raw_html']
-            doc_length = source['docLength']
+            # doc_length = source['docLength']
 
             if score != 0:
                 results[rank] = {'docno': doc_id, 'title': title, 'text': text, 'in_links': in_links,\
-                                   'out_links': out_links, 'header': header, 'raw_html': raw_html, \
-                                   'doc_length': doc_length, 'score': score}
+                                'out_links': out_links, 'header': header, 'raw_html': raw_html, \
+                                'score': score}
 
                 '''print doc_id
                 print rank

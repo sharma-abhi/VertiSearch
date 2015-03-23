@@ -1,17 +1,19 @@
 body            { font-family: sans-serif; background: #eee; }
 a, h1, h2       { color: #377ba8; }
 
+.flash          { background: #cee5F5; padding: 0.5em;
+                  border: 1px solid #aacbe2; }
+.error          { color: red; padding: 0.5em; }
+
+
 div.query-box      {
     position: fixed;
     width: 80%;
     height: 80%;
     left: 35%;
-    top: 30%;
+    top: 10%;
 }
 
-.flash          { background: #cee5F5; padding: 0.5em;
-                  border: 1px solid #aacbe2; }
-.error          { color: red; padding: 0.5em; }
 
 p.results-info {
     text-align: left;
@@ -49,6 +51,18 @@ div.results-section {
     padding: 2px 5px 2px 5px;
 }
 div.results-detail{
-    border-style: "groove"
-    border-width: 1px
+    border-style: "groove";
+    border-width: 1px;
+}
+
+.prev-query {
+    position: fixed;
+    top: 45%;
+    bottom: 0;
+    left: 0;
+    right: 0;
+}
+
+ul.a {
+    list-style-type: square;
 }

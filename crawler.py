@@ -120,7 +120,7 @@ def save_to_file(json_object, file_obj):
     file_obj.write("</DOC>\n")
 
 ############################### start of program ###########################
-# TODO: make command line arguments for generalization
+# TODO: make command line arguments for topic generalization
 topic = 'world+war+2'
 encoding_format = 'ascii'
 cutoff_limit = 70000
@@ -355,10 +355,10 @@ while not front.is_front_empty():
         docNo = url.encode(encoding_format,'ignore')
 
         # cleaning text for insertion to ElasticSearch.
-        text = rel_check.remove_stop(text)
+        # text = rel_check.remove_stop(text)
 
         # calculating docLength for insertion to ElasticSearch.
-        docLength = len(text.split())
+        # docLength = len(text.split())
         doc = {
                 'docno': docNo,
                 'title': title,
@@ -367,7 +367,6 @@ while not front.is_front_empty():
                 'out_links': list(explored[url]),
                 'header': str(header),
                 'raw_html': str(html.decode(encoding_format, 'ignore')),
-                'docLength': docLength
                 }
 
         # indexing document in Elastic Search

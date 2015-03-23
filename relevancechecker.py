@@ -27,7 +27,8 @@ class RelevanceChecker:
             else:
                 count += 1
         
-        if count >= 1:
+        #if count >= 1:
+        if count == 0:
             return True
         else:
             return False
@@ -42,7 +43,9 @@ class RelevanceChecker:
                 count += 1
             else:
                 continue
-        if count >= 1:
+
+        #if count >= 1:
+        if count == 0:
             return True
         else:
             return False
