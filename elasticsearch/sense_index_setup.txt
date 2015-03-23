@@ -1,0 +1,70 @@
+PUT /vs_dataset/
+{
+  "settings": {
+    "index": {
+      "store": {
+        "type": "default"
+      },
+      "number_of_shards": 1,
+      "number_of_replicas": 3
+    },
+    "analysis": {
+      "analyzer": {
+        "my_english": { 
+          "type": "english",
+          "stopwords_path": "stoplist.txt" 
+        }
+      }
+    }
+  }
+}
+
+PUT /vs_dataset/document/_mapping
+{
+  "document": {
+    "properties": {
+      "docno": {
+        "type": "string",
+        "store": true,
+        "index": "not_analyzed"
+      },
+      "title": {
+        "type": "string",
+        "store": true,
+        "index": "analyzed",
+        "term_vector": "with_positions_offsets_payloads",
+        "analyzer": "my_english"
+      },
+      "text": {
+        "type": "string",
+        "store": true,
+        "index": "analyzed",
+        "term_vector": "with_positions_offsets_payloads",
+        "analyzer": "my_english"
+      },
+      "in_links": {
+        "type": "string",
+        "store": true,
+        "index": "not_analyzed"
+      },
+      "out_links": {
+        "type": "string",
+        "store": true,
+        "index": "not_analyzed"
+      },
+      "header": {
+        "type": "string", 
+        "store": true
+      },
+      "raw_html":  {
+          "type": "string", 
+          "store": true
+      },
+      "doclength": {
+        "type": "long",
+        "store": true,
+        "index": "not_analyzed"
+      }
+    }
+  }
+}
