@@ -50,13 +50,13 @@ def policy_rules(full_url, limit):
     # list of banned domains
     banned_domains = ['facebook', 'amazon', 'google', 'linkedin', 'youtube', 'foursquare', 'plus.google', \
                       'instagram', 'twitter', 'email', 'flickr', 'vine', 'meetup', 'tumblr', 'videos', \
-                      'pictures', 'games', 'audio']
+                      'pictures', 'games', 'audio', 'booksources']
     
     host_url = host_extract(full_url)
    
     # excluding sites like Facebook, Amazon, Linkedin, etc.
     for domain in banned_domains:
-        if domain in host_url:
+        if domain in full_url.lower():
             print "Banned Domain", domain ," Skipping..."
             return False
 
@@ -65,13 +65,13 @@ def policy_rules(full_url, limit):
     while try_count < limit:
         try: rp.fetch(host_url+'/robots.txt')
         except urllib2.URLError as err:
-            print "Error: ", err," for URL: ", url.encode('ascii', 'ignore')
+            print "Error: ", err," for URL: ", full_url.encode('ascii', 'ignore')
             try_count += 1
-            log_error(err, url)
+            log_error(err, full_url)
         except UnicodeError as err:
-            print "Error: ", err, " for URL: ", url.encode('ascii', 'ignore')
+            print "Error: ", err, " for URL: ", full_url.encode('ascii', 'ignore')
             try_count += 1
-            log_error(err, url)
+            log_error(err, full_url)
         else:
             # retry limit reached, skip this url.
             break
@@ -82,7 +82,7 @@ def policy_rules(full_url, limit):
         return False
 
     # check for permission
-    if rp.is_allowed("*", url):
+    if rp.is_allowed("*", full_url):
         return True
     else:
         return False
@@ -124,7 +124,7 @@ def save_to_file(json_object, file_obj):
 topic = 'world+war+2'
 encoding_format = 'ascii'
 cutoff_limit = 70000
-logging_limit = 1000
+logging_limit = 100
 
 # Timekeeping
 start_time = str(datetime.now())
@@ -316,6 +316,7 @@ while not front.is_front_empty():
 
             # Canonicalization of out link.
             canonical_out_link = canon.canonicalize(out_link, url)
+
             # if after canonicalization, we get same url, skip.
             if canonical_out_link == url:
                 log_error("skipped becase url produced same canonicalization out-link as itself: ", out_link)

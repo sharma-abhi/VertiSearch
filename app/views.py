@@ -21,6 +21,8 @@ def login():
 
         cq = Computequery()
         results, time_taken, results_num = cq.fetch_results(form.openid.data)
+        time_taken /= float(1000)
+
         print "inside result()"
         print len(results)
         sorted_keys = sorted(results)

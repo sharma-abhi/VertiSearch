@@ -24,7 +24,7 @@ class Computequery(object):
         query_body = {"query": {"multi_match": {"query": query, "fields": ["title", "text"]}}}
 
         #Using built-in score
-        res = self.es.search(index="vs_dataset", doc_type="document", size=100, analyzer="my_english", body=query_body)
+        res = self.es.search(index="vs_dataset", doc_type="document", size=1000, analyzer="my_english", body=query_body)
         time_taken = res['took']
         results_num = len(res['hits']['hits'])
         print "time taken", time_taken
