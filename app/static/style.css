@@ -50,9 +50,10 @@ div.results-section {
     border-bottom: 2px solid #eee;
     padding: 2px 5px 2px 5px;
 }
-div.results-detail{
-    border-style: "groove";
-    border-width: 1px;
+div.results-detail {
+    border-style: groove;
+    border-width: 5px;
+    font: 14px Tahoma, Geneva, sans-serif;
 }
 
 .prev-query {
@@ -65,4 +66,8 @@ div.results-detail{
 
 ul.a {
     list-style-type: square;
+}
+
+.hidden-fields {
+    color: #000089;
 }

@@ -26,11 +26,11 @@ else { document.getElementById(d).style.display = "none"; }
                 <p class="results-text">{{ results[key].text[:500] }}...</p>
                 <p class ="results-url"><a href="javascript:ReverseDisplay('{{ results[key].docno }}')">Click here for more details</a></p>
                 <div id= {{ results[key].docno }}  style="display:none;" class="results-detail">
-                    <p class="results-text">{{ results[key].text }}</p>
-                    <p>In Links: {{ results[key].in_links }}</p>
-                    <p>Out Links: {{ results[key].out_links }}</p>
-                    <p>Header: {{ results[key].header }}</p>
-                    <p>raw_html: {{ results[key].raw_html }}</p>
+                    <p class="hidden-fields">{{ results[key].text }}</p>
+                    <p class="hidden-fields">In Links: {{ results[key].in_links }}</p><hr>
+                    <p class="hidden-fields">Out Links: {{ results[key].out_links }}</p><hr>
+                    <p class="hidden-fields">Header: {{ results[key].header }}</p>
+                    <p class="hidden-fields">raw_html: {{ results[key].raw_html }}</p>
                 </div>
             </div><hr>
         {% endfor %}

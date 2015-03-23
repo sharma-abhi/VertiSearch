@@ -1,7 +1,7 @@
 __author__ = 'abhijeet'
 
 from elasticsearch import Elasticsearch
-#from elasticsearch import client
+from elasticsearch import client
 from relevancechecker import RelevanceChecker
 #import string
 
@@ -17,14 +17,24 @@ class Computequery(object):
         # self.vocabSize = 140292
         # self.lamb = 0.5
 
-    def fetch_results(self, query):
-        query = self.rc.remove_stop(query)
+    def fetch_results(self, query, query_size):
+        # query = self.rc.remove_stop(query)
+        ic = client.IndicesClient(self.es)
 
         print "Running Query ", query
+
+
+        # Querying using built-in score
+        query_array = []
+        analyzed_result = ic.analyze(index="vs_dataset",analyzer="my_english",body=query)
+        token_length = len(analyzed_result['tokens'])
+        for i in range(token_length):
+            query_array.append(str(analyzed_result['tokens'][i]['token']))
+
+        query = ' '.join(query_array)
         query_body = {"query": {"multi_match": {"query": query, "fields": ["title", "text"]}}}
 
-        #Using built-in score
-        res = self.es.search(index="vs_dataset", doc_type="document", size=1000, analyzer="my_english", body=query_body)
+        res = self.es.search(index="vs_dataset", doc_type="document", size=query_size, analyzer="my_english", body=query_body)
         time_taken = res['took']
         results_num = len(res['hits']['hits'])
         print "time taken", time_taken

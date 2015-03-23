@@ -138,9 +138,10 @@ print "starting in time :", start_time
 seed_url1 = 'http://en.wikipedia.org/wiki/List_of_World_War_II_battles_involving_the_United_States'
 seed_url2 = 'http://en.wikipedia.org/wiki/Military_history_of_the_United_States_during_World_War_II'
 seed_url3 = 'http://en.wikipedia.org/wiki/World_War_II'
+seed_url4 = 'http://www.history.com/topics/world-war-ii'
 
 # Inserting seed url
-front = frontier.FrontierQueue([seed_url1, seed_url2, seed_url3])
+front = frontier.FrontierQueue([seed_url1, seed_url2, seed_url3, seed_url4])
 
 rel_check = rc.RelevanceChecker()
 es = Elasticsearch(hosts=[{'host': '10.0.0.9', 'port': 9200}], timeout=180)
@@ -187,7 +188,7 @@ while not front.is_front_empty():
     # Pop an url and it's corresponding in-links
     url, in_links = front.pop()
     in_link_dict[url] = in_links
-    print count, "Crawl started for URL ", url.encode(encoding_format,'ignore'), " in links: ", in_links
+    print count, "Crawl started for URL ", url.encode(encoding_format,'ignore')
 
     # If this website has already been crawled, no need to crawl again
     # Can implement an update fn.for updating modified websites (for version 2.0).

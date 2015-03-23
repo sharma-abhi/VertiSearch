@@ -11,8 +11,10 @@ from flask import request
 def login():
     form = LoginForm()
     if form.validate_on_submit():
-        flash('Query requested ="%s", remember_query=%s' %
-              (form.openid.data, str(form.remember_me.data)))
+        print "form submitted"
+        print "size: ", form.myField.data
+        flash('Query requested ="%s", size = "%s", remember_query=%s' %
+              (form.openid.data, str(form.myField.data), str(form.remember_me.data)))
 
         if form.remember_me.data:
             if len(form.prev_set) == 10:
@@ -20,7 +22,7 @@ def login():
             form.prev_set.add(form.openid.data)
 
         cq = Computequery()
-        results, time_taken, results_num = cq.fetch_results(form.openid.data)
+        results, time_taken, results_num = cq.fetch_results(form.openid.data, form.myField.data)
         time_taken /= float(1000)
 
         print "inside result()"
