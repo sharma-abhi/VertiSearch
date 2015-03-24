@@ -10,7 +10,8 @@ class Computequery(object):
     """computes the result based on user input query"""
 
     def __init__(self):
-        self.es = Elasticsearch(hosts=[{'host': '10.0.0.9', 'port': 9200}], timeout=180)
+        #self.es = Elasticsearch(hosts=[{'host': '10.0.0.9', 'port': 9200}], timeout=180)
+        self.es = Elasticsearch()
         self.rc = RelevanceChecker()
         # calculated using Sense
         # self.maxSize = 84678

@@ -20,14 +20,21 @@ from elasticsearch import exceptions
 # INPUT: docNo, which is the unique identifier for a document in ElasticSearch.
 # OUTPUT: True if the particular document is present, False otherwise.
 def is_present(elastic, doc_no):
+    es_start_ts = time()
     try:
         req = elastic.get(index='vs_dataset', doc_type='document', id=doc_no, fields=['text'])
     except exceptions.NotFoundError as err:
         log_error(err, doc_no)
+        es_end_ts = time()
+        es_time += es_end_ts - es_start_ts
         return False
     except:
+        es_end_ts = time()
+        es_time += es_end_ts - es_start_ts
         return False
     else:
+        es_end_ts = time()
+        es_time += es_end_ts - es_start_ts
         return True
 
 
@@ -124,7 +131,7 @@ def save_to_file(json_object, file_obj):
 topic = 'world+war+2'
 encoding_format = 'ascii'
 cutoff_limit = 70000
-logging_limit = 100
+logging_limit = 10
 
 # Timekeeping
 start_time = str(datetime.now())
@@ -132,7 +139,12 @@ start_ts = time.time()
 st = 0  # start time
 et = 1  # end time
 print "starting in time :", start_time
-
+global frontier_time
+global es_time
+global http_time
+frontier_time = 0
+es_time = 0
+http_time = 0
 # Initialization of seeds
 # TODO: Read from a file for generalization
 seed_url1 = 'http://en.wikipedia.org/wiki/List_of_World_War_II_battles_involving_the_United_States'
@@ -144,8 +156,8 @@ seed_url4 = 'http://www.history.com/topics/world-war-ii'
 front = frontier.FrontierQueue([seed_url1, seed_url2, seed_url3, seed_url4])
 
 rel_check = rc.RelevanceChecker()
-es = Elasticsearch(hosts=[{'host': '10.0.0.9', 'port': 9200}], timeout=180)
-
+#es = Elasticsearch(hosts=[{'host': '10.0.0.9', 'port': 9200}], timeout=180)
+es = Elasticsearch()
 # no. of retry attempts for fetching data from a website
 retry_limit = 2
 
@@ -172,12 +184,13 @@ topic_seed = json.loads(topic_response)
 topic_seed = [x["word"] for x in topic_seed if x['score'] > topic_score_limit]
 print "Length of seed list for topic : ", topic," is :", len(topic_seed)
 
-
 while not front.is_front_empty():
     # initializing links
-    links = []
+    links = set()
 
     time_diff = et - st
+    if time_diff < 0:
+        time_diff = time.time() - st
     print "time taken ", time_diff
 
     # being polite...only if time taken by previous compute is less than 1 second.
@@ -186,7 +199,11 @@ while not front.is_front_empty():
     st = time.time()
 
     # Pop an url and it's corresponding in-links
+    pop_start = time.time()
     url, in_links = front.pop()
+    pop_end = time.time()
+    frontier_time += pop_end - pop_start
+
     in_link_dict[url] = in_links
     print count, "Crawl started for URL ", url.encode(encoding_format,'ignore')
 
@@ -204,6 +221,7 @@ while not front.is_front_empty():
 
     if allowed and not visited:
         redo_count = 0
+        http_start_ts = time.time()
         while redo_count < retry_limit:
             try:
                 response = opener.open(url)
@@ -214,7 +232,9 @@ while not front.is_front_empty():
             else:
                 # retry limit reached, skip this url.
                 break
-        
+        http_end_ts = time.time()
+        http_time += http_end_ts - http_start_ts
+
         if redo_count == retry_limit:
             # skip this url.
             print "redo count exceeded. Skipping..."
@@ -310,20 +330,26 @@ while not front.is_front_empty():
                     continue
 
                 # if link is good, add it to list
-                links.append(link.get('href'))
+                links.add(link.get('href'))
 
-        # processing each valid out links
+        canonical_links = set()
+
         for out_link in links:
+            canonical_links.add(canon.canonicalize(out_link, url))
+        # processing each valid out links
+        for canonical_out_link in canonical_links:
 
             # Canonicalization of out link.
-            canonical_out_link = canon.canonicalize(out_link, url)
+            # canonical_out_link = canon.canonicalize(out_link, url)
 
             # if after canonicalization, we get same url, skip.
             if canonical_out_link == url:
-                log_error("skipped becase url produced same canonicalization out-link as itself: ", out_link)
+                log_error("skipped because url produced same canonicalization out-link as itself: ", canonical_out_link)
+                ts = time.time()
                 continue
 
             # check if link(url) exists in the frontier set.
+            front_update_start = time.time()
             if front.exists(canonical_out_link):
                 # update the out-link's in-link dictionary with current crawled url.
                 front.update(canonical_out_link, url)
@@ -339,12 +365,18 @@ while not front.is_front_empty():
                         fw.write(str({canonical_out_link: url}) + "\n")
                 except exceptions.NotFoundError as err:
                     log_error(err, canonical_out_link)
+                    front_update_end = time.time()
+                    frontier_time += front_update_end - front_update_start
                     continue
                 except exceptions.ConnectionError as err:
                     log_error(err, canonical_out_link)
+                    front_update_end = time.time()
+                    frontier_time += front_update_end - front_update_start
                     continue
                 except:
                     log_error("Other Errors", canonical_out_link)
+                    front_update_end = time.time()
+                    frontier_time += front_update_end - front_update_start
                     continue
             # check if link(url) doesn't exist in the frontier set and doesn't exists in the explored set also.
             else:
@@ -352,6 +384,9 @@ while not front.is_front_empty():
 
             # add link to explored set as an out link.
             explored[url].add(canonical_out_link)
+
+            front_update_end = time.time()
+            frontier_time += front_update_end - front_update_start
 
         # cleaning url for insertion to ElasticSearch.
         docNo = url.encode(encoding_format,'ignore')
@@ -372,16 +407,18 @@ while not front.is_front_empty():
                 }
 
         # indexing document in Elastic Search
+        index_start_ts = time.time()
         try:
             res = es.index(index="vs_dataset", doc_type='document', id=docNo, body=doc)
         except:
             log_error("index already present", url)
             print "Index UnSuccessful for url", url
         else:
-            with open("output/vs_" + str(count) + ".txt","w") as fw:
-                save_to_file(doc, fw)
+            #with open("output/vs_" + str(count) + ".txt","w") as fw:
+            #    save_to_file(doc, fw)
             print "Index successful for url", url
-
+        index_end_ts = time.time()
+        es_time += index_end_ts - index_start_ts
         # incrementing counter
         count += 1
 
@@ -392,6 +429,13 @@ while not front.is_front_empty():
                 flog.write(str(topic_seed))
             # logging frontier data
             front.write_logs(count)
+            # time log
+            with open("logs/time_" + str(count) + ".log","w") as flog:
+                flog.write("Avg. Frontier time: " + str(frontier_time/float(logging_limit)) + "\n")
+                flog.write("Avg. Elastic Search time: " + str(es_time/float(logging_limit)) + "\n")
+                flog.write("Avg. Http time: " + str(http_time/float(logging_limit)) + "\n")
+            frontier_time = 0
+            es_time = 0
 
         # check for cutoff limit.If limit reached, stop crawler.
         if count == cutoff_limit:
