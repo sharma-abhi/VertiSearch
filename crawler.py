@@ -79,6 +79,8 @@ def policy_rules(full_url, limit):
             print "Error: ", err, " for URL: ", full_url.encode('ascii', 'ignore')
             try_count += 1
             log_error(err, full_url)
+        except:
+            try_count += 1
         else:
             # retry limit reached, skip this url.
             break
@@ -131,7 +133,7 @@ def save_to_file(json_object, file_obj):
 topic = 'world+war+2'
 encoding_format = 'ascii'
 cutoff_limit = 70000
-logging_limit = 10
+logging_limit = 1000
 
 # Timekeeping
 start_time = str(datetime.now())
@@ -229,6 +231,8 @@ while not front.is_front_empty():
                 print "Error: ", e," for URL: ", url.encode(encoding_format, 'ignore')
                 log_error(e, url)
                 redo_count += 1
+            except:
+                redo_count += 1
             else:
                 # retry limit reached, skip this url.
                 break
@@ -253,6 +257,8 @@ while not front.is_front_empty():
             # there is no 'content-type' field.skip url.
             print "KeyError ", e," Skipping..."
             log_error(e, url)
+            continue
+        except:
             continue
 
         # if header is not html, skip
@@ -424,6 +430,7 @@ while not front.is_front_empty():
 
         # logging data
         if count % logging_limit == 0:
+            front.frontier_clean()
             # logging topic seeds
             with open("logs/topic_" + str(count) + ".log","w") as flog:
                 flog.write(str(topic_seed))

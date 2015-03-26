@@ -92,6 +92,10 @@ class FrontierQueue(object):
             flog.write(str(self.in_link_dict))
         print "There are ", len(self.in_link_dict), " items in frontier"
 
+    def frontier_clean(self):
+         res = [self.heap.pop(self.heap.index(x)) for x in self.heap if x[2] == 'NA']
+         print "frontier cleaned: "
+
 '''
 class FrontierQueue:
     """Seed URLs should always be crawled first.
