@@ -14,26 +14,27 @@ import relevancechecker as rc
 from canonicalization import Canonicalizer as canon
 from elasticsearch import Elasticsearch
 from elasticsearch import exceptions
-
+import cPickle as pickle
+import sys
 
 # This function checks whether the given docNo is present in ElasticSearch or not.
 # INPUT: docNo, which is the unique identifier for a document in ElasticSearch.
 # OUTPUT: True if the particular document is present, False otherwise.
 def is_present(elastic, doc_no):
-    es_start_ts = time()
+    es_start_ts = time.time()
     try:
         req = elastic.get(index='vs_dataset', doc_type='document', id=doc_no, fields=['text'])
     except exceptions.NotFoundError as err:
         log_error(err, doc_no)
-        es_end_ts = time()
+        es_end_ts = time.time()
         es_time += es_end_ts - es_start_ts
         return False
     except:
-        es_end_ts = time()
+        es_end_ts = time.time()
         es_time += es_end_ts - es_start_ts
         return False
     else:
-        es_end_ts = time()
+        es_end_ts = time.time()
         es_time += es_end_ts - es_start_ts
         return True
 
@@ -132,8 +133,17 @@ def save_to_file(json_object, file_obj):
 # TODO: make command line arguments for topic generalization
 topic = 'world+war+2'
 encoding_format = 'ascii'
-cutoff_limit = 70000
-logging_limit = 1000
+cutoff_limit = 15001
+logging_limit = 500
+
+args = sys.argv
+print args
+
+is_continue = json.loads(args[1])
+if is_continue:
+    loop_cnt = int(args[2])
+else:
+    loop_cnt = 0
 
 # Timekeeping
 start_time = str(datetime.now())
@@ -155,7 +165,7 @@ seed_url3 = 'http://en.wikipedia.org/wiki/World_War_II'
 seed_url4 = 'http://www.history.com/topics/world-war-ii'
 
 # Inserting seed url
-front = frontier.FrontierQueue([seed_url1, seed_url2, seed_url3, seed_url4])
+front = frontier.FrontierQueue([seed_url1, seed_url2, seed_url3, seed_url4], is_continue, loop_cnt)
 
 rel_check = rc.RelevanceChecker()
 #es = Elasticsearch(hosts=[{'host': '10.0.0.9', 'port': 9200}], timeout=180)
@@ -164,13 +174,26 @@ es = Elasticsearch()
 retry_limit = 2
 
 # Initializing counter for logging and cutoff process.
-count = 0
+if is_continue:
+    count = loop_cnt
+    print "Reading from in link dicts"
+    with open("d:/logs/in_links_" + str(loop_cnt) + ".txt", "r") as fin:
+        in_link_dict = pickle.load(fin)
 
-# initializing dictionary for holding in links
-in_link_dict = {}
+    print "Reading from explored"
+    f = open("d:/logs/explored_" + str(count) + ".txt", "r")
+    pickle.fast = True
+    explored = pickle.load(f)
+    print "explored count", len(explored)
+    # p.clear_memo()
+    f.close()
 
-# initializing dictionary for holding out links
-explored = {}
+else:
+    count = 0
+    # initializing dictionary for holding in links
+    in_link_dict = {}
+    # initializing dictionary for holding out links
+    explored = {}
 
 # The minimum score for fetching relevant topics
 topic_score_limit = 38661
@@ -315,7 +338,7 @@ while not front.is_front_empty():
             link_ref = link.get('href')
             anchor_text = ""
             # check if link is valid or not.
-            if link_ref is not None  and link_ref != '' and link_ref[0] != '#':
+            if link_ref is not None and link_ref != '' and link_ref[0] != '#':
                 # check if link has valid anchor text
                 if len(link.contents) != 0 and isinstance(link.contents[0], element.NavigableString):
                     # fetching anchor text to identify relevancy.
@@ -366,9 +389,10 @@ while not front.is_front_empty():
                 # update elastic search with the new in link.
                 es_body = {u'in_links': {"script": 'update_links', "params": {"new_link": url}}}
                 try:
-                    res = es.update(index='vs_dataset', doc_type='document', id=canonical_out_link, body=es_body)
+                    # res = es.update(index='vs_dataset', doc_type='document', id=canonical_out_link, body=es_body)
                     with open("output/updates.txt","a+") as fw:
                         fw.write(str({canonical_out_link: url}) + "\n")
+                    in_link_dict[canonical_out_link].add(url)
                 except exceptions.NotFoundError as err:
                     log_error(err, canonical_out_link)
                     front_update_end = time.time()
@@ -415,13 +439,13 @@ while not front.is_front_empty():
         # indexing document in Elastic Search
         index_start_ts = time.time()
         try:
-            res = es.index(index="vs_dataset", doc_type='document', id=docNo, body=doc)
+            with open("output/vs_" + str(count) + ".txt", "w") as fw:
+                save_to_file(doc, fw)
+            # res = es.index(index="vs_dataset", doc_type='document', id=docNo, body=doc)
         except:
             log_error("index already present", url)
             print "Index UnSuccessful for url", url
         else:
-            #with open("output/vs_" + str(count) + ".txt","w") as fw:
-            #    save_to_file(doc, fw)
             print "Index successful for url", url
         index_end_ts = time.time()
         es_time += index_end_ts - index_start_ts
@@ -430,22 +454,36 @@ while not front.is_front_empty():
 
         # logging data
         if count % logging_limit == 0:
-            front.frontier_clean()
+            # front.frontier_clean()
+            print "Writing to in link dict"
+            p = pickle.Pickler(open("d:/logs/in_links_" + str(count) + ".txt", "w"))
+            p.fast = True
+            p.dump(in_link_dict) # d is your dictionary
+            p.clear_memo()
+
+            print "Writing to explored"
+            p = pickle.Pickler(open("d:/logs/explored_" + str(count) + ".txt", "w"))
+            p.fast = True
+            p.dump(explored) # d is your dictionary
+            p.clear_memo()
+
             # logging topic seeds
-            with open("logs/topic_" + str(count) + ".log","w") as flog:
-                flog.write(str(topic_seed))
+            # with open("d:/logs/topic_" + str(count) + ".log","w") as flog:
+            #     flog.write(str(topic_seed))
             # logging frontier data
             front.write_logs(count)
             # time log
-            with open("logs/time_" + str(count) + ".log","w") as flog:
+            with open("d:/logs/time_" + str(count) + ".log","w") as flog:
                 flog.write("Avg. Frontier time: " + str(frontier_time/float(logging_limit)) + "\n")
                 flog.write("Avg. Elastic Search time: " + str(es_time/float(logging_limit)) + "\n")
                 flog.write("Avg. Http time: " + str(http_time/float(logging_limit)) + "\n")
             frontier_time = 0
             es_time = 0
+            p.clear_memo()
 
         # check for cutoff limit.If limit reached, stop crawler.
         if count == cutoff_limit:
+            front.write_logs(count)
             print "Cutoff limit reached.Congratulations."
             break
     else:
