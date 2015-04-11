@@ -10,8 +10,8 @@ class Computequery(object):
     """computes the result based on user input query"""
 
     def __init__(self):
-        #self.es = Elasticsearch(hosts=[{'host': '10.0.0.9', 'port': 9200}], timeout=180)
-        self.es = Elasticsearch(hosts=[{'host': 'localhost', 'port': 9200}], timeout=180)
+        self.es = Elasticsearch(hosts=[{'host': '10.0.0.9', 'port': 9200}], timeout=180)
+        #self.es = Elasticsearch(hosts=[{'host': 'localhost', 'port': 9200}], timeout=180)
         self.rc = RelevanceChecker()
         # calculated using Sense
         # self.maxSize = 84678
@@ -33,7 +33,7 @@ class Computequery(object):
             query_array.append(str(analyzed_result['tokens'][i]['token']))
 
         query = ' '.join(query_array)
-        query_body = {"query": {"multi_match": {"query": query, "fields": ["text"]}}}
+        query_body = {"query": {"multi_match": {"query": query, "fields": ["title","text"]}}}
 
         res = self.es.search(index="vs_dataset", doc_type="document", size=query_size, analyzer="my_english", body=query_body)
         time_taken = res['took']
