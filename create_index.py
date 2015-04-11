@@ -26,16 +26,13 @@ def is_present(elastic, doc_no):
         #es_time += es_end_ts - es_start_ts
         return True
 
-def update_index(es, doc_no, inlinks):
-    #es_body = {u'in_links': {"script": 'updateInLinks', "params": {"inc_links": inlinks}}}
-    es_body = {u'in_links': {"script": 'updateInLinks', "params": {"inc_links": inlinks}}}
+def update_index(doc_no, inlinks):
+    es_body = {u'in_links': {"script": 'update_links', "params": {"new_link": inlinks}}}
     try:
         res = es.update(index='vs_dataset', doc_type='document', id=doc_no, body=es_body)
-        print "update done"
         with open("logs/update_index_log.log","a+") as f:
-            f.write("DOCNO: " + str(doc_no) + "\n")
-            f.write("INLINK: " + str(inlinks) + "\n")
-        #print "write done"
+            f.write("DOCNO: " + doc_no + "\n")
+            f.write("INLINK: " + inlinks + "\n")
     except exceptions.NotFoundError as err:
         print "Not Found Error", err
     except exceptions.ConnectionError as err:
@@ -47,10 +44,9 @@ start_time = str(datetime.now())
 start_ts = time.time()
 print "starting in time :", start_time
 
-es = Elasticsearch(hosts=[{'host': '192.168.43.85', 'port': 9200}], timeout=180)
-#es = Elasticsearch(hosts=[{'host': 'localhost', 'port': 9200}], timeout=180)
+es = Elasticsearch(hosts=[{'host': 'localhost', 'port': 9200}], timeout=180)
 
-filepath = 'd:/output'
+filepath = 'output'
 filenames = listdir(filepath)
 
 for file in filenames:
@@ -89,7 +85,7 @@ for file in filenames:
                 in_link_list = []
             inlinks = [unicode(x) for x in in_link_list]
             if update_bool:
-                update_index(es, doc_no, inlinks)
+                update_index(doc_no, inlinks)
                 #break
         elif line.startswith("<TITLE>"):
             title_string = re.search('<TITLE>(.*)</TITLE>', line).group(1)
@@ -120,17 +116,16 @@ for file in filenames:
             content_bool = False
             #if update_bool:
             #    raise Exception("Something's Wrong.Update command found but Reched Content Block.")
-            if update_bool == False:
-                doc = {
-                    'docno': doc_no,
-                    'title': title_string,
-                    'text': text_string,
-                    'in_links': list(inlinks),
-                    'out_links': list(outlinks),
-                    'header': header_string,
-                    'raw_html': content_string,
-                    }
-                res = es.index(index="vs_dataset", doc_type='document', id=doc_no, body=doc)
+            doc = {
+                'docno': doc_no,
+                'title': title_string,
+                'text': text_string,
+                'in_links': list(inlinks),
+                'out_links': list(outlinks),
+                'header': header_string,
+                'raw_html': content_string,
+                }
+            res = es.index(index="vs_dataset", doc_type='document', id=doc_no, body=doc)
             with open ("d:/logs/out_link_graph.txt", "a+") as f:
                 tab_sep_outlinks = '\t'.join(outlinks)
                 f.write(doc_no + "\t" + tab_sep_outlinks + "\n")
