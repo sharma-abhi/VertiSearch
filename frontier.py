@@ -91,16 +91,6 @@ class FrontierQueue(object):
         self.entry_finder[item] = updated_entry
         self.in_link_dict[item].add(in_link)
         # print "update done.. ", updated_entry
-        '''entry =[(a, b, c) for a, b, c in self.heap if c == item]
-        if len(entry) == 0:
-            print "Error in update, item not found"
-        else:
-            entry = entry[0]
-            self.heap.remove(entry)
-            self.in_link_dict[item].add(in_link)
-
-            updated_entry = (-new_priority, entry[1], item)
-            heapq.heappush(self.heap, updated_entry)'''
 
     """ check whether item exists in frontier and seed set or not. """
     def exists(self, item):
